@@ -4,6 +4,7 @@ import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:go_router/go_router.dart';
 import '../../tenant/bloc/tenant_bloc.dart';
 import '../../tenant/bloc/tenant_state.dart';
+import '../../tenant/utils/tenant_switch.dart';
 import '../bloc/job_bloc.dart';
 import '../bloc/job_event.dart';
 import '../bloc/job_state.dart';
@@ -54,11 +55,21 @@ class _JobListScreenState extends State<JobListScreen> {
                   height: 30,
                   width: 30,
                   fit: BoxFit.contain,
-                  errorWidget: (_, _, _) => const Icon(Icons.apartment, size: 24),
+                  errorWidget: (_, _, _) => Image.asset(
+                    'assets/images/logo_smarthire_icon.png',
+                    height: 28,
+                    width: 28,
+                    fit: BoxFit.contain,
+                  ),
                 ),
               )
             else
-              const Icon(Icons.apartment, size: 24),
+              Image.asset(
+                'assets/images/logo_smarthire_icon.png',
+                height: 28,
+                width: 28,
+                fit: BoxFit.contain,
+              ),
             const SizedBox(width: 10),
             Expanded(
               child: Column(
@@ -83,9 +94,7 @@ class _JobListScreenState extends State<JobListScreen> {
           IconButton(
             tooltip: 'Đổi công ty',
             icon: const Icon(Icons.swap_horiz_rounded),
-            onPressed: () {
-              context.go('/select-tenant');
-            },
+            onPressed: () => switchTenantWorkspace(context),
           ),
         ],
       ),

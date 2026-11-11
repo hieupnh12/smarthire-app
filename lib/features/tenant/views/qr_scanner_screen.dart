@@ -17,17 +17,25 @@ class _QrScannerScreenState extends State<QrScannerScreen> {
   );
   bool _isProcessing = false;
 
-  void _onDetect(BarcodeCapture capture) {
+  Future<void> _onDetect(BarcodeCapture capture) async {
     if (_isProcessing) return;
-    final barcodes = capture.barcodes;
-    if (barcodes.isEmpty) return;
 
-    final rawValue = barcodes.first.rawValue;
-    if (rawValue == null || rawValue.isEmpty) return;
+    final rawValue = capture.barcodes
+        .map((b) => b.rawValue)
+        .whereType<String>()
+        .firstWhere((v) => v.trim().isNotEmpty, orElse: () => '');
+    if (rawValue.isEmpty) return;
+
+    final access = QrCodeParser.extractTenantAccess(rawValue);
+    if (access.tenantCode.isEmpty) return;
 
     _isProcessing = true;
-    final extractedCode = QrCodeParser.extractTenantCode(rawValue);
-    Navigator.of(context).pop(extractedCode);
+    try {
+      await _controller.stop();
+    } catch (_) {}
+
+    if (!mounted) return;
+    Navigator.of(context).pop(access);
   }
 
   @override

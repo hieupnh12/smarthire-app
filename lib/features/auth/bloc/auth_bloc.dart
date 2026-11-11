@@ -10,6 +10,7 @@ class AuthBloc extends Bloc<AuthEvent, AuthState> {
     on<CheckAuthStatusEvent>(_onCheckAuthStatus);
     on<GoogleLoginEvent>(_onGoogleLogin);
     on<LogoutEvent>(_onLogout);
+    on<SessionExpiredEvent>(_onSessionExpired);
   }
 
   Future<void> _onCheckAuthStatus(CheckAuthStatusEvent event, Emitter<AuthState> emit) async {
@@ -39,6 +40,10 @@ class AuthBloc extends Bloc<AuthEvent, AuthState> {
   Future<void> _onLogout(LogoutEvent event, Emitter<AuthState> emit) async {
     emit(AuthLoading());
     await _repository.logout();
+    emit(Unauthenticated());
+  }
+
+  void _onSessionExpired(SessionExpiredEvent event, Emitter<AuthState> emit) {
     emit(Unauthenticated());
   }
 }

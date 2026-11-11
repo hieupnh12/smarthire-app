@@ -7,8 +7,10 @@ import '../storage/storage_service.dart';
 import '../../features/applications/repositories/application_repository.dart';
 import '../../features/auth/bloc/auth_bloc.dart';
 import '../../features/auth/repositories/auth_repository.dart';
+import '../../features/interviews/repositories/interview_repository.dart';
 import '../../features/jobs/bloc/job_bloc.dart';
 import '../../features/jobs/repositories/job_repository.dart';
+import '../../features/notifications/repositories/notification_repository.dart';
 import '../../features/tenant/bloc/tenant_bloc.dart';
 import '../../features/tenant/repositories/tenant_repository.dart';
 
@@ -41,6 +43,12 @@ Future<void> initDependencies() async {
   );
   getIt.registerLazySingleton<ApplicationRepository>(
     () => ApplicationRepository(getIt<DioClient>()),
+  );
+  getIt.registerLazySingleton<InterviewRepository>(
+    () => InterviewRepository(getIt<DioClient>()),
+  );
+  getIt.registerLazySingleton<NotificationRepository>(
+    () => NotificationRepository(getIt<DioClient>()),
   );
 
   // Blocs

@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:go_router/go_router.dart';
 import 'core/di/injection.dart';
+import 'core/network/dio_client.dart';
 import 'core/routes/app_router.dart';
 import 'core/storage/storage_service.dart';
 import 'core/theme/app_theme.dart';
@@ -30,12 +31,28 @@ class SmartHireApp extends StatefulWidget {
 
 class _SmartHireAppState extends State<SmartHireApp> {
   late final GoRouter _router;
+  late final AuthBloc _authBloc;
+  late final DioClient _dioClient;
 
   @override
   void initState() {
     super.initState();
     final storageService = getIt<StorageService>();
     _router = createAppRouter(storageService);
+    _authBloc = getIt<AuthBloc>()..add(CheckAuthStatusEvent());
+    _dioClient = getIt<DioClient>();
+    _dioClient.onSessionExpired = () {
+      if (!_authBloc.isClosed) {
+        _authBloc.add(SessionExpiredEvent());
+      }
+    };
+  }
+
+  @override
+  void dispose() {
+    _dioClient.onSessionExpired = null;
+    _authBloc.close();
+    super.dispose();
   }
 
   @override
@@ -45,9 +62,7 @@ class _SmartHireAppState extends State<SmartHireApp> {
         BlocProvider<TenantBloc>(
           create: (_) => getIt<TenantBloc>()..add(LoadCachedTenantEvent()),
         ),
-        BlocProvider<AuthBloc>(
-          create: (_) => getIt<AuthBloc>()..add(CheckAuthStatusEvent()),
-        ),
+        BlocProvider<AuthBloc>.value(value: _authBloc),
         BlocProvider<JobBloc>(
           create: (_) => getIt<JobBloc>(),
         ),
@@ -61,7 +76,7 @@ class _SmartHireAppState extends State<SmartHireApp> {
           }
 
           return MaterialApp.router(
-            title: 'SmartHire Candidate',
+            title: 'SmarthireAI',
             debugShowCheckedModeBanner: false,
             theme: AppTheme.getTheme(dynamicPrimary: brandColor),
             routerConfig: _router,

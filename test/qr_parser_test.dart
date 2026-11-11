@@ -35,5 +35,32 @@ void main() {
       final code = QrCodeParser.extractTenantCode(plain);
       expect(code, equals('acme'));
     });
+
+    test('Extract production baseUrl from smarthire.top QR JSON', () {
+      const qrJson = '''{
+  "type": "TENANT_ACCESS",
+  "tenantId": "se36",
+  "tenantCode": "se36",
+  "url": "https://se36.smarthire.top/career?tenantId=se36&source=mobile_app_qr"
+}''';
+
+      final access = QrCodeParser.extractTenantAccess(qrJson);
+      expect(access.tenantCode, equals('se36'));
+      expect(access.suggestedBaseUrl, equals('https://smarthire.top/api/v1'));
+    });
+
+    test('Map Vite LAN port 5173 in QR url to backend port 8080', () {
+      const lanUrl = 'http://10.12.48.107:5173/career?tenantId=acme';
+      final access = QrCodeParser.extractTenantAccess(lanUrl);
+      expect(access.tenantCode, equals('acme'));
+      expect(access.suggestedBaseUrl, equals('http://10.12.48.107:8080/api/v1'));
+    });
+
+    test('Do not override baseUrl to localhost when QR comes from localhost dev web', () {
+      const localUrl = 'http://localhost:5173/career?tenantId=acme';
+      final access = QrCodeParser.extractTenantAccess(localUrl);
+      expect(access.tenantCode, equals('acme'));
+      expect(access.suggestedBaseUrl, isNull);
+    });
   });
 }

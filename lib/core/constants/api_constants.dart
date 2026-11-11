@@ -1,10 +1,13 @@
 class ApiConstants {
   ApiConstants._();
 
-  // Mặc định cho kết nối USB qua adb reverse hoặc máy thật cùng mạng Wi-Fi
-  static const String defaultBaseUrl = 'http://localhost:8080/api/v1';
-  static const String lanBaseUrl = 'http://172.20.10.3:8080/api/v1';
   static const String productionBaseUrl = 'https://smarthire.top/api/v1';
+  static const String localReverseBaseUrl = 'http://localhost:8080/api/v1';
+  static const String emulatorBaseUrl = 'http://10.0.2.2:8080/api/v1';
+  static const String lanBaseUrl = 'http://172.20.10.3:8080/api/v1';
+
+  // Mặc định dùng Production để hoạt động ngay trên điện thoại thật qua Wi-Fi/4G
+  static const String defaultBaseUrl = productionBaseUrl;
 
   static const String tenantHeader = 'X-Tenant-ID';
   static const String authHeader = 'Authorization';
@@ -18,10 +21,11 @@ class ApiConstants {
 
   // Public Tenant Endpoints
   static const String publicLanding = '/public/landing';
-  static const String publicJobs = '/jobs/public';
+  static const String publicJobs = '/public/jobs';
 
   // Candidate Auth Endpoints
   static const String candidateGoogleLogin = '/tenant/auth/google';
+  static const String candidateRefresh = '/tenant/auth/refresh';
   static const String candidateProfile = '/tenant/auth/me';
   static const String candidateLogout = '/tenant/auth/logout';
 
@@ -29,7 +33,13 @@ class ApiConstants {
   static const String candidateApplications = '/applications';
   static const String uploadCv = '/cvs/upload';
 
-  // Assessment & AI Interview
+  // Assessment, AI Interview & Human Interview
   static const String candidateAssessments = '/assessments';
   static const String candidateInterviews = '/interviews';
+  static const String candidateMyInterviews = '/interviews/mine';
+  static const String candidateSubmissions = '/submissions';
+
+  // Notifications
+  static const String notifications = '/notifications';
+  static const String notificationPreferences = '/notifications/preferences';
 }

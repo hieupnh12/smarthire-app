@@ -1,8 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
-import 'package:go_router/go_router.dart';
 import '../../auth/bloc/auth_bloc.dart';
 import '../../auth/bloc/auth_state.dart';
+import '../../auth/views/widgets/unauthenticated_prompt_view.dart';
 
 class CandidateAssessmentListScreen extends StatelessWidget {
   const CandidateAssessmentListScreen({super.key});
@@ -17,32 +17,12 @@ class CandidateAssessmentListScreen extends StatelessWidget {
         title: const Text('Bài Test & Phỏng Vấn AI'),
       ),
       body: authState is! Authenticated
-          ? Center(
-              child: Padding(
-                padding: const EdgeInsets.all(24.0),
-                child: Column(
-                  mainAxisAlignment: MainAxisAlignment.center,
-                  children: [
-                    Icon(Icons.smart_toy_outlined, size: 56, color: theme.colorScheme.outline),
-                    const SizedBox(height: 16),
-                    const Text(
-                      'Đăng nhập để vào phòng phỏng vấn',
-                      style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
-                    ),
-                    const SizedBox(height: 8),
-                    Text(
-                      'Thực hiện bài kiểm tra trắc nghiệm online và tham gia phỏng vấn thử / phỏng vấn trực tiếp cùng AI.',
-                      textAlign: TextAlign.center,
-                      style: TextStyle(color: theme.colorScheme.outline),
-                    ),
-                    const SizedBox(height: 24),
-                    ElevatedButton(
-                      onPressed: () => context.push('/login'),
-                      child: const Text('Đăng nhập ngay'),
-                    ),
-                  ],
-                ),
-              ),
+          ? const UnauthenticatedPromptView(
+              icon: Icons.smart_toy_outlined,
+              title: 'Đăng nhập để vào phòng phỏng vấn',
+              description:
+                  'Thực hiện bài kiểm tra trắc nghiệm online và tham gia phỏng vấn thử / phỏng vấn trực tiếp cùng AI.',
+              buttonLabel: 'Đăng nhập ngay',
             )
           : ListView(
               padding: const EdgeInsets.all(16),

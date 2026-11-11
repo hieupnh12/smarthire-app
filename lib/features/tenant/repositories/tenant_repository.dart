@@ -58,10 +58,18 @@ class TenantRepository {
         throw Exception('Mã công ty "$code" không tồn tại trong hệ thống SmartHire.');
       } else if (e.response?.statusCode == 403) {
         throw Exception('Doanh nghiệp "$code" hiện chưa được kích hoạt hoặc đang tạm ngưng.');
-      } else if (e.type == DioExceptionType.connectionTimeout || e.type == DioExceptionType.connectionError) {
-        throw Exception('Không thể kết nối tới máy chủ backend. Vui lòng kiểm tra địa chỉ API hoặc mạng.');
+      } else if (e.type == DioExceptionType.connectionTimeout ||
+          e.type == DioExceptionType.sendTimeout ||
+          e.type == DioExceptionType.receiveTimeout ||
+          e.type == DioExceptionType.connectionError) {
+        throw Exception(
+          'Không thể kết nối tới máy chủ (${_dioClient.dio.options.baseUrl}). Vui lòng kiểm tra địa chỉ API hoặc mạng.',
+        );
       }
-      final message = e.response?.data?['message'] ?? e.message ?? 'Đã có lỗi xảy ra';
+      final data = e.response?.data;
+      final message = (data is Map<String, dynamic> ? data['message'] : null) ??
+          e.message ??
+          'Đã có lỗi xảy ra';
       throw Exception('Kiểm tra doanh nghiệp thất bại: $message');
     }
   }

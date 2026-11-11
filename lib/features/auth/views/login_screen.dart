@@ -3,14 +3,21 @@ import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:go_router/go_router.dart';
 import '../../tenant/bloc/tenant_bloc.dart';
-import '../../tenant/bloc/tenant_event.dart';
 import '../../tenant/bloc/tenant_state.dart';
+import '../../tenant/utils/tenant_switch.dart';
 import '../bloc/auth_bloc.dart';
 import '../bloc/auth_event.dart';
 import '../bloc/auth_state.dart';
 
-class LoginScreen extends StatelessWidget {
+class LoginScreen extends StatefulWidget {
   const LoginScreen({super.key});
+
+  @override
+  State<LoginScreen> createState() => _LoginScreenState();
+}
+
+class _LoginScreenState extends State<LoginScreen> {
+  String? _authErrorMessage;
 
   @override
   Widget build(BuildContext context) {
@@ -23,10 +30,7 @@ class LoginScreen extends StatelessWidget {
         title: const Text('Đăng Nhập Ứng Viên'),
         actions: [
           TextButton.icon(
-            onPressed: () {
-              context.read<TenantBloc>().add(ClearTenantEvent());
-              context.go('/select-tenant');
-            },
+            onPressed: () => switchTenantWorkspace(context),
             icon: const Icon(Icons.swap_horiz_rounded, size: 18),
             label: const Text('Đổi công ty', style: TextStyle(fontSize: 13)),
           ),
@@ -34,15 +38,31 @@ class LoginScreen extends StatelessWidget {
       ),
       body: BlocConsumer<AuthBloc, AuthState>(
         listener: (context, state) {
-          if (state is Authenticated) {
-            context.go('/jobs');
+          if (state is AuthLoading) {
+            if (_authErrorMessage != null) {
+              setState(() => _authErrorMessage = null);
+            }
+          } else if (state is Authenticated) {
+            if (_authErrorMessage != null) {
+              setState(() => _authErrorMessage = null);
+            }
+            if (context.canPop()) {
+              context.pop(true);
+            } else {
+              context.go('/jobs');
+            }
           } else if (state is AuthError) {
-            ScaffoldMessenger.of(context).showSnackBar(
-              SnackBar(
-                content: Text(state.message),
-                backgroundColor: theme.colorScheme.error,
-              ),
-            );
+            setState(() => _authErrorMessage = state.message);
+            ScaffoldMessenger.of(context)
+              ..hideCurrentSnackBar()
+              ..showSnackBar(
+                SnackBar(
+                  content: Text(state.message),
+                  backgroundColor: theme.colorScheme.error,
+                  behavior: SnackBarBehavior.floating,
+                  duration: const Duration(seconds: 6),
+                ),
+              );
           }
         },
         builder: (context, state) {
@@ -127,7 +147,54 @@ class LoginScreen extends StatelessWidget {
                         ),
                       ),
                     ),
-                    const SizedBox(height: 36),
+                    if (_authErrorMessage != null) ...[
+                      const SizedBox(height: 20),
+                      Container(
+                        padding: const EdgeInsets.all(14),
+                        decoration: BoxDecoration(
+                          color: theme.colorScheme.error.withValues(alpha: 0.08),
+                          borderRadius: BorderRadius.circular(12),
+                          border: Border.all(
+                            color: theme.colorScheme.error.withValues(alpha: 0.35),
+                          ),
+                        ),
+                        child: Row(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Icon(
+                              Icons.error_outline_rounded,
+                              color: theme.colorScheme.error,
+                              size: 20,
+                            ),
+                            const SizedBox(width: 10),
+                            Expanded(
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  Text(
+                                    'Đăng nhập chưa thành công (vẫn ở chế độ Khách)',
+                                    style: TextStyle(
+                                      fontSize: 13,
+                                      fontWeight: FontWeight.bold,
+                                      color: theme.colorScheme.error,
+                                    ),
+                                  ),
+                                  const SizedBox(height: 4),
+                                  Text(
+                                    _authErrorMessage!,
+                                    style: TextStyle(
+                                      fontSize: 12.5,
+                                      color: theme.colorScheme.onSurface,
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ],
+                    const SizedBox(height: 28),
 
                     // Google Sign-In Primary Button
                     OutlinedButton(
@@ -219,16 +286,17 @@ class LoginScreen extends StatelessWidget {
 
   Widget _buildDefaultLogo(ThemeData theme) {
     return Container(
-      width: 64,
-      height: 64,
+      width: 72,
+      height: 72,
+      padding: const EdgeInsets.all(10),
       decoration: BoxDecoration(
-        color: theme.colorScheme.primaryContainer,
+        color: Colors.white,
         borderRadius: BorderRadius.circular(18),
+        border: Border.all(color: theme.colorScheme.outlineVariant),
       ),
-      child: Icon(
-        Icons.work_outline_rounded,
-        size: 34,
-        color: theme.colorScheme.primary,
+      child: Image.asset(
+        'assets/images/logo_smarthire_icon.png',
+        fit: BoxFit.contain,
       ),
     );
   }

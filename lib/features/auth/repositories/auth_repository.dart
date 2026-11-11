@@ -41,9 +41,11 @@ class AuthRepository {
         },
       );
 
-      return _processAuthResponse(response.data);
+      return await _processAuthResponse(response.data);
     } on DioException catch (e) {
-      final msg = e.response?.data?['message'] ?? e.message ?? 'Xác thực tài khoản Google thất bại';
+      final data = e.response?.data;
+      final serverMessage = data is Map<String, dynamic> ? data['message'] as String? : null;
+      final msg = serverMessage ?? e.message ?? 'Xác thực tài khoản Google thất bại';
       throw Exception(msg);
     }
   }
@@ -51,13 +53,14 @@ class AuthRepository {
   Future<UserModel> _processAuthResponse(dynamic responseBody) async {
     Map<String, dynamic> data = {};
     if (responseBody is Map<String, dynamic>) {
-      data = responseBody['data'] as Map<String, dynamic>? ?? responseBody;
+      final inner = responseBody['data'];
+      data = inner is Map<String, dynamic> ? inner : responseBody;
     }
 
     final accessToken = data['accessToken'] as String?;
     final refreshToken = data['refreshToken'] as String?;
 
-    if (accessToken == null) {
+    if (accessToken == null || accessToken.isEmpty) {
       throw Exception('Không nhận được mã xác thực token từ máy chủ.');
     }
 
@@ -66,8 +69,11 @@ class AuthRepository {
       refreshToken: refreshToken,
     );
 
-    final userData = (data['candidate'] ?? data['user'] ?? data) as Map<String, dynamic>;
-    final user = UserModel.fromJson(userData);
+    final rawUser = data['candidate'] ?? data['user'] ?? data;
+    if (rawUser is! Map<String, dynamic>) {
+      throw Exception('Dữ liệu hồ sơ ứng viên từ máy chủ không hợp lệ.');
+    }
+    final user = UserModel.fromJson(rawUser);
     await _storageService.saveUserData(user.toJson());
 
     return user;
@@ -84,23 +90,35 @@ class AuthRepository {
 
   Future<UserModel?> checkCurrentUser() async {
     final token = await _storageService.getAccessToken();
-    if (token == null || token.isEmpty) return null;
+    final refreshToken = await _storageService.getRefreshToken();
+    final hasAccess = token != null && token.isNotEmpty;
+    final hasRefresh = refreshToken != null && refreshToken.isNotEmpty;
+    if (!hasAccess && !hasRefresh) return null;
 
     final cached = getCachedUser();
-    if (cached != null) return cached;
 
     try {
       final response = await _dioClient.dio.get(ApiConstants.candidateProfile);
       final body = response.data;
       Map<String, dynamic> data = {};
       if (body is Map<String, dynamic>) {
-        data = body['data'] as Map<String, dynamic>? ?? body;
+        final inner = body['data'];
+        data = inner is Map<String, dynamic> ? inner : body;
       }
       final user = UserModel.fromJson(data);
       await _storageService.saveUserData(user.toJson());
       return user;
-    } catch (_) {
+    } on DioException catch (e) {
+      final status = e.response?.statusCode;
+      if (status == 401 || status == 403 || status == 404) {
+        await _storageService.clearTokens();
+        return null;
+      }
+      // Giữ trạng thái đăng nhập tạm thời nếu chỉ mất kết nối mạng lúc khởi động
+      if (cached != null) return cached;
       return null;
+    } catch (_) {
+      return cached;
     }
   }
 }
