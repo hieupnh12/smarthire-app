@@ -78,8 +78,6 @@ void main() {
       expect(find.text('Đăng nhập ngay'), findsNothing);
       expect(find.text('Luyện Phỏng Vấn với AI'), findsOneWidget);
       expect(find.text('Bài Test Năng Lực Kỹ Thuật (FE-05)'), findsOneWidget);
-
-      await authBloc.close();
     },
   );
 
@@ -109,18 +107,21 @@ void main() {
       });
       await tester.pump();
 
+      final bannerContainer = find.ancestor(
+        of: find.text('Đăng nhập chưa thành công (vẫn ở chế độ Khách)'),
+        matching: find.byType(Container),
+      ).first;
       expect(
         find.text('Đăng nhập chưa thành công (vẫn ở chế độ Khách)'),
         findsOneWidget,
       );
       expect(
-        find.text('Đăng nhập Google thất bại do ứng dụng Android chưa khớp SHA-1.'),
+        find.descendant(
+          of: bannerContainer,
+          matching: find.text('Đăng nhập Google thất bại do ứng dụng Android chưa khớp SHA-1.'),
+        ),
         findsOneWidget,
       );
-
-      await tester.pumpWidget(const SizedBox.shrink());
-      await authBloc.close();
-      await tenantBloc.close();
     },
   );
 }
