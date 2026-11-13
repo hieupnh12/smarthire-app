@@ -9,6 +9,8 @@ import '../../auth/bloc/auth_state.dart';
 import '../../interviews/models/human_interview_model.dart';
 import '../../interviews/repositories/interview_repository.dart';
 import '../../interviews/views/widgets/interview_card.dart';
+import '../../mobile/models/mobile_dashboard_model.dart';
+import '../../mobile/repositories/mobile_repository.dart';
 import '../../notifications/models/notification_models.dart';
 import '../../notifications/repositories/notification_repository.dart';
 import '../../tenant/bloc/tenant_bloc.dart';
@@ -28,6 +30,8 @@ class _ProfileScreenState extends State<ProfileScreen> {
   String? _interviewsError;
 
   List<NotificationPreferenceModel> _preferences = const [];
+  MobileDashboardModel? _dashboard;
+  MobileConfigModel? _mobileConfig;
 
   @override
   void initState() {
@@ -56,7 +60,24 @@ class _ProfileScreenState extends State<ProfileScreen> {
     await Future.wait([
       _fetchInterviews(),
       _fetchPreferences(),
+      _fetchMobileExtras(),
     ]);
+  }
+
+  Future<void> _fetchMobileExtras() async {
+    try {
+      final config = await getIt<MobileRepository>().getMobileConfig();
+      if (mounted) setState(() => _mobileConfig = config);
+    } catch (_) {}
+
+    if (!mounted) return;
+    final authState = context.read<AuthBloc>().state;
+    if (authState is Authenticated) {
+      try {
+        final dash = await getIt<MobileRepository>().getCandidateDashboard();
+        if (mounted) setState(() => _dashboard = dash);
+      } catch (_) {}
+    }
   }
 
   Future<void> _fetchInterviews() async {
@@ -193,6 +214,45 @@ class _ProfileScreenState extends State<ProfileScreen> {
                   ),
                 ),
               ),
+              if (user != null) ...[
+                const SizedBox(height: 12),
+                Card(
+                  child: Padding(
+                    padding: const EdgeInsets.symmetric(vertical: 14, horizontal: 8),
+                    child: Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+                      children: [
+                        _buildStatColumn(
+                          theme,
+                          label: 'Đang ứng tuyển',
+                          value: '${_dashboard?.activeApplications ?? 0}',
+                          icon: Icons.work_outline_rounded,
+                          color: theme.colorScheme.primary,
+                          onTap: () => context.go('/applications'),
+                        ),
+                        Container(height: 32, width: 1, color: theme.colorScheme.outlineVariant),
+                        _buildStatColumn(
+                          theme,
+                          label: 'Lịch phỏng vấn',
+                          value: '${_dashboard?.upcomingInterviewsCount ?? upcomingInterviews.length}',
+                          icon: Icons.calendar_today_outlined,
+                          color: Colors.green,
+                          onTap: null,
+                        ),
+                        Container(height: 32, width: 1, color: theme.colorScheme.outlineVariant),
+                        _buildStatColumn(
+                          theme,
+                          label: 'Thông báo',
+                          value: '${_dashboard?.unreadNotificationsCount ?? 0}',
+                          icon: Icons.notifications_none_rounded,
+                          color: Colors.orange,
+                          onTap: () => _openRouteAndRefresh('/profile/notifications'),
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
+              ],
               const SizedBox(height: 20),
 
               // Active Tenant Info Section
@@ -395,7 +455,13 @@ class _ProfileScreenState extends State<ProfileScreen> {
                     const Divider(height: 1),
                     ListTile(
                       leading: const Icon(Icons.info_outline_rounded),
-                      title: const Text('Phiên bản ứng dụng'),
+                      title: const Text('Phiên bản & Máy chủ'),
+                      subtitle: _mobileConfig != null
+                          ? Text(
+                              'Kết nối backend Spring Boot OK · v${_mobileConfig!.latestVersion}',
+                              style: const TextStyle(fontSize: 12, color: Colors.green),
+                            )
+                          : null,
                       trailing: Text(
                         '1.0.0 (SmarthireAI)',
                         style: TextStyle(color: theme.colorScheme.outline, fontSize: 13),
@@ -419,6 +485,46 @@ class _ProfileScreenState extends State<ProfileScreen> {
               ),
             ],
           ),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildStatColumn(
+    ThemeData theme, {
+    required String label,
+    required String value,
+    required IconData icon,
+    required Color color,
+    VoidCallback? onTap,
+  }) {
+    return InkWell(
+      onTap: onTap,
+      borderRadius: BorderRadius.circular(8),
+      child: Padding(
+        padding: const EdgeInsets.symmetric(horizontal: 8.0, vertical: 4.0),
+        child: Column(
+          children: [
+            Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Icon(icon, size: 16, color: color),
+                const SizedBox(width: 4),
+                Text(
+                  value,
+                  style: theme.textTheme.titleMedium?.copyWith(
+                    fontWeight: FontWeight.bold,
+                    color: color,
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(height: 4),
+            Text(
+              label,
+              style: TextStyle(fontSize: 11, color: theme.colorScheme.outline),
+            ),
+          ],
         ),
       ),
     );

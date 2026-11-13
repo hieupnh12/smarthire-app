@@ -42,4 +42,9 @@ class ApiConstants {
   // Notifications
   static const String notifications = '/notifications';
   static const String notificationPreferences = '/notifications/preferences';
+
+  // Mobile Specific Endpoints (com.smarthire.tenant.mobile)
+  static const String mobileConfig = '/public/mobile/config';
+  static const String mobileDashboard = '/mobile/dashboard';
+  static const String mobileDeviceToken = '/mobile/device-token';
 }
