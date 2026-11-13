@@ -4,7 +4,7 @@ class ApiConstants {
   static const String productionBaseUrl = 'https://smarthire.top/api/v1';
   static const String localReverseBaseUrl = 'http://localhost:8080/api/v1';
   static const String emulatorBaseUrl = 'http://10.0.2.2:8080/api/v1';
-  static const String lanBaseUrl = 'http://172.20.10.3:8080/api/v1';
+  static const String lanBaseUrl = 'http://172.16.0.26:8080/api/v1';
 
   // Mặc định dùng Production để hoạt động ngay trên điện thoại thật qua Wi-Fi/4G
   static const String defaultBaseUrl = productionBaseUrl;
