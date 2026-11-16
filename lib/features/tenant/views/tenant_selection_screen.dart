@@ -61,24 +61,6 @@ class _TenantSelectionScreenState extends State<TenantSelectionScreen> {
     _submitCode(scanned.tenantCode);
   }
 
-  Future<void> _showServerSettingsDialog() async {
-    final saved = await showDialog<String>(
-      context: context,
-      builder: (_) => _ServerSettingsDialog(
-        initialUrl:
-            getIt<StorageService>().getCustomBaseUrl() ?? _activeBaseUrl,
-      ),
-    );
-    if (saved != null && saved.isNotEmpty) {
-      await _applyBaseUrl(saved);
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Đã cập nhật máy chủ: $saved')),
-        );
-      }
-    }
-  }
-
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
@@ -86,13 +68,6 @@ class _TenantSelectionScreenState extends State<TenantSelectionScreen> {
     return Scaffold(
       appBar: AppBar(
         title: const Text('Chọn Doanh Nghiệp'),
-        actions: [
-          IconButton(
-            tooltip: 'Cài đặt kết nối máy chủ',
-            icon: const Icon(Icons.settings_outlined),
-            onPressed: _showServerSettingsDialog,
-          ),
-        ],
       ),
       body: BlocConsumer<TenantBloc, TenantState>(
         listener: (context, state) {
@@ -169,7 +144,7 @@ class _TenantSelectionScreenState extends State<TenantSelectionScreen> {
                         autocorrect: false,
                         textCapitalization: TextCapitalization.none,
                         decoration: InputDecoration(
-                          labelText: 'Mã công ty (Company Subdomain)',
+                          labelText: 'Mã doanh nghiệp tuyển dụng',
                           hintText: 'ví dụ: fpt, viettel, vng',
                           prefixIcon: const Icon(Icons.business_rounded),
                           suffixIcon: IconButton(
@@ -193,40 +168,7 @@ class _TenantSelectionScreenState extends State<TenantSelectionScreen> {
                           }
                         },
                       ),
-                      const SizedBox(height: 16),
-
-                      // Suggestion Chips
-                      Wrap(
-                        spacing: 8,
-                        crossAxisAlignment: WrapCrossAlignment.center,
-                        children: [
-                          Text(
-                            'Gợi ý:',
-                            style: theme.textTheme.labelMedium?.copyWith(
-                              color: theme.colorScheme.outline,
-                            ),
-                          ),
-                          ActionChip(
-                            label: const Text('fpt'),
-                            onPressed: isLoading
-                                ? null
-                                : () {
-                                    _codeController.text = 'fpt';
-                                    _submitCode('fpt');
-                                  },
-                          ),
-                          ActionChip(
-                            label: const Text('vng'),
-                            onPressed: isLoading
-                                ? null
-                                : () {
-                                    _codeController.text = 'vng';
-                                    _submitCode('vng');
-                                  },
-                          ),
-                        ],
-                      ),
-                      const SizedBox(height: 28),
+                      const SizedBox(height: 24),
 
                       // Submit button
                       ElevatedButton(
@@ -256,26 +198,6 @@ class _TenantSelectionScreenState extends State<TenantSelectionScreen> {
                         icon: const Icon(Icons.qr_code_scanner_rounded),
                         label: const Text('Quét Mã QR Công Ty'),
                       ),
-                      const SizedBox(height: 16),
-
-                      // Active Server Indicator
-                      Center(
-                        child: TextButton.icon(
-                          onPressed: isLoading ? null : _showServerSettingsDialog,
-                          icon: Icon(
-                            Icons.dns_outlined,
-                            size: 16,
-                            color: theme.colorScheme.outline,
-                          ),
-                          label: Text(
-                            'Máy chủ: $_activeBaseUrl',
-                            style: TextStyle(
-                              fontSize: 12,
-                              color: theme.colorScheme.outline,
-                            ),
-                          ),
-                        ),
-                      ),
                     ],
                   ),
                 ),
@@ -284,97 +206,6 @@ class _TenantSelectionScreenState extends State<TenantSelectionScreen> {
           );
         },
       ),
-    );
-  }
-}
-
-class _ServerSettingsDialog extends StatefulWidget {
-  final String initialUrl;
-
-  const _ServerSettingsDialog({required this.initialUrl});
-
-  @override
-  State<_ServerSettingsDialog> createState() => _ServerSettingsDialogState();
-}
-
-class _ServerSettingsDialogState extends State<_ServerSettingsDialog> {
-  late final TextEditingController _urlController =
-      TextEditingController(text: widget.initialUrl);
-
-  @override
-  void dispose() {
-    _urlController.dispose();
-    super.dispose();
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    return AlertDialog(
-      title: const Text(
-        'Cấu hình Máy chủ API',
-        style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
-      ),
-      content: SingleChildScrollView(
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            const Text(
-              'Địa chỉ Backend API của hệ thống SmartHire:',
-              style: TextStyle(fontSize: 13, color: Colors.grey),
-            ),
-            const SizedBox(height: 12),
-            TextField(
-              controller: _urlController,
-              decoration: const InputDecoration(
-                hintText: ApiConstants.productionBaseUrl,
-                prefixIcon: Icon(Icons.dns_outlined),
-              ),
-            ),
-            const SizedBox(height: 12),
-            Wrap(
-              spacing: 8,
-              runSpacing: 8,
-              children: [
-                ActionChip(
-                  label: const Text('Production (smarthire.top)'),
-                  onPressed: () =>
-                      _urlController.text = ApiConstants.productionBaseUrl,
-                ),
-                ActionChip(
-                  label: const Text('USB Cáp (localhost)'),
-                  onPressed: () =>
-                      _urlController.text = ApiConstants.localReverseBaseUrl,
-                ),
-                ActionChip(
-                  label: const Text('Emulator (10.0.2.2)'),
-                  onPressed: () =>
-                      _urlController.text = ApiConstants.emulatorBaseUrl,
-                ),
-                ActionChip(
-                  label: const Text('Wi-Fi LAN'),
-                  onPressed: () => _urlController.text = ApiConstants.lanBaseUrl,
-                ),
-              ],
-            ),
-          ],
-        ),
-      ),
-      actions: [
-        TextButton(
-          onPressed: () => Navigator.pop(context),
-          child: const Text('Hủy'),
-        ),
-        ElevatedButton(
-          onPressed: () {
-            final newUrl = _urlController.text.trim();
-            if (newUrl.isNotEmpty) {
-              Navigator.pop(context, newUrl);
-            }
-          },
-          child: const Text('Lưu'),
-        ),
-      ],
     );
   }
 }

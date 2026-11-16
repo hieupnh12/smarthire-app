@@ -8,11 +8,8 @@ import '../../auth/bloc/auth_event.dart';
 import '../../auth/bloc/auth_state.dart';
 import '../../interviews/models/human_interview_model.dart';
 import '../../interviews/repositories/interview_repository.dart';
-import '../../interviews/views/widgets/interview_card.dart';
 import '../../mobile/models/mobile_dashboard_model.dart';
 import '../../mobile/repositories/mobile_repository.dart';
-import '../../notifications/models/notification_models.dart';
-import '../../notifications/repositories/notification_repository.dart';
 import '../../tenant/bloc/tenant_bloc.dart';
 import '../../tenant/bloc/tenant_state.dart';
 import '../../tenant/utils/tenant_switch.dart';
@@ -26,10 +23,7 @@ class ProfileScreen extends StatefulWidget {
 
 class _ProfileScreenState extends State<ProfileScreen> {
   List<HumanInterviewModel> _interviews = const [];
-  bool _loadingInterviews = false;
-  String? _interviewsError;
 
-  List<NotificationPreferenceModel> _preferences = const [];
   MobileDashboardModel? _dashboard;
   MobileConfigModel? _mobileConfig;
 
@@ -45,21 +39,12 @@ class _ProfileScreenState extends State<ProfileScreen> {
       if (!mounted) return;
       setState(() {
         _interviews = const [];
-        _preferences = const [];
-        _loadingInterviews = false;
-        _interviewsError = null;
       });
       return;
     }
 
-    setState(() {
-      _loadingInterviews = true;
-      _interviewsError = null;
-    });
-
     await Future.wait([
       _fetchInterviews(),
-      _fetchPreferences(),
       _fetchMobileExtras(),
     ]);
   }
@@ -86,40 +71,8 @@ class _ProfileScreenState extends State<ProfileScreen> {
       if (!mounted) return;
       setState(() {
         _interviews = items;
-        _loadingInterviews = false;
       });
-    } catch (e) {
-      if (!mounted) return;
-      setState(() {
-        _interviewsError = e.toString().replaceAll('Exception: ', '');
-        _loadingInterviews = false;
-      });
-    }
-  }
-
-  Future<void> _fetchPreferences() async {
-    try {
-      final prefs = await getIt<NotificationRepository>().getPreferences();
-      if (!mounted) return;
-      setState(() {
-        _preferences = prefs;
-      });
-    } catch (_) {
-      // Keep subtitle clean if preferences could not be loaded in background.
-    }
-  }
-
-  String _notificationSubtitle(bool isAuthenticated) {
-    if (!isAuthenticated) {
-      return 'Đăng nhập để cài đặt kênh nhận thông báo';
-    }
-    if (_preferences.isEmpty) {
-      return 'Cấu hình nhận thông báo App/Web & Gmail';
-    }
-    final webCount = _preferences.where((p) => p.webEnabled).length;
-    final emailCount = _preferences.where((p) => p.emailEnabled).length;
-    final total = _preferences.length;
-    return 'Đang bật $webCount/$total trên App/Web · $emailCount/$total qua Gmail';
+    } catch (_) {}
   }
 
   Future<void> _openRouteAndRefresh(String path, {Object? extra}) async {
@@ -140,7 +93,6 @@ class _ProfileScreenState extends State<ProfileScreen> {
 
     final upcomingInterviews = _interviews.where((i) => i.isUpcoming(now)).toList()
       ..sort((a, b) => a.start.compareTo(b.start));
-    final pastCount = _interviews.length - upcomingInterviews.length;
 
     return BlocListener<AuthBloc, AuthState>(
       listener: (context, state) {
@@ -237,7 +189,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
                           value: '${_dashboard?.upcomingInterviewsCount ?? upcomingInterviews.length}',
                           icon: Icons.calendar_today_outlined,
                           color: Colors.green,
-                          onTap: null,
+                          onTap: () => _openRouteAndRefresh('/profile/interviews'),
                         ),
                         Container(height: 32, width: 1, color: theme.colorScheme.outlineVariant),
                         _buildStatColumn(
@@ -259,175 +211,109 @@ class _ProfileScreenState extends State<ProfileScreen> {
               Text(
                 'DOANH NGHIỆP ĐANG XEM',
                 style: theme.textTheme.labelMedium?.copyWith(
-                  fontWeight: FontWeight.bold,
+                  fontWeight: FontWeight.w700,
+                  fontSize: 12,
+                  letterSpacing: 0.5,
                   color: theme.colorScheme.outline,
                 ),
               ),
               const SizedBox(height: 8),
               Card(
+                clipBehavior: Clip.antiAlias,
                 child: ListTile(
-                  contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                  contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
                   leading: tenant?.logoUrl != null && tenant!.logoUrl!.isNotEmpty
                       ? ClipRRect(
                           borderRadius: BorderRadius.circular(8),
                           child: CachedNetworkImage(
                             imageUrl: tenant.logoUrl!,
-                            width: 44,
-                            height: 44,
+                            width: 38,
+                            height: 38,
                             fit: BoxFit.contain,
                             errorWidget: (_, _, _) => Image.asset(
                               'assets/images/logo_smarthire_icon.png',
-                              width: 38,
-                              height: 38,
+                              width: 34,
+                              height: 34,
                               fit: BoxFit.contain,
                             ),
                           ),
                         )
                       : Image.asset(
                           'assets/images/logo_smarthire_icon.png',
-                          width: 38,
-                          height: 38,
+                          width: 34,
+                          height: 34,
                           fit: BoxFit.contain,
                         ),
                   title: Text(
-                    tenant?.name ?? 'Chưa chọn công ty',
-                    style: const TextStyle(fontWeight: FontWeight.bold),
+                    tenant?.name ?? 'Chưa chọn doanh nghiệp',
+                    style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 14.5),
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
                   ),
-                  subtitle: Text(
-                    '${tenant?.code ?? '...'}.smarthire.top',
-                    style: TextStyle(color: theme.colorScheme.outline),
-                  ),
+                  subtitle: tenant?.code != null
+                      ? Text(
+                          'Mã: ${tenant!.code.toUpperCase()}',
+                          style: TextStyle(color: theme.colorScheme.outline, fontSize: 12),
+                        )
+                      : null,
                   trailing: OutlinedButton.icon(
                     onPressed: () => switchTenantWorkspace(context),
                     icon: const Icon(Icons.swap_horiz_rounded, size: 16),
                     label: const Text('Đổi', style: TextStyle(fontSize: 12)),
+                    style: OutlinedButton.styleFrom(
+                      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                      minimumSize: Size.zero,
+                      tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                    ),
                   ),
+                  onTap: () => switchTenantWorkspace(context),
                 ),
               ),
-              const SizedBox(height: 24),
+              const SizedBox(height: 20),
 
               // Interview Schedule Section
-              Row(
-                mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                children: [
-                  Text(
-                    'LỊCH PHỎNG VẤN CỦA TÔI',
-                    style: theme.textTheme.labelMedium?.copyWith(
-                      fontWeight: FontWeight.bold,
-                      color: theme.colorScheme.outline,
-                    ),
-                  ),
-                  if (user != null)
-                    TextButton(
-                      onPressed: () => _openRouteAndRefresh('/profile/interviews'),
-                      style: TextButton.styleFrom(
-                        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
-                        minimumSize: Size.zero,
-                        tapTargetSize: MaterialTapTargetSize.shrinkWrap,
-                      ),
-                      child: const Text('Xem tất cả', style: TextStyle(fontSize: 13)),
-                    ),
-                ],
+              Text(
+                'LỊCH PHỎNG VẤN CỦA TÔI',
+                style: theme.textTheme.labelMedium?.copyWith(
+                  fontWeight: FontWeight.bold,
+                  color: theme.colorScheme.outline,
+                ),
               ),
               const SizedBox(height: 8),
-              if (user == null)
-                Card(
-                  child: ListTile(
-                    leading: Icon(Icons.event_note_outlined, color: theme.colorScheme.primary),
-                    title: const Text('Lịch & chi tiết phỏng vấn'),
-                    subtitle: const Text('Đăng nhập để xem lịch hẹn, link phòng họp và xác nhận tham dự.'),
-                    trailing: const Icon(Icons.chevron_right_rounded),
-                    onTap: () => context.push('/login'),
-                  ),
-                )
-              else if (_loadingInterviews)
-                const Card(
-                  child: Padding(
-                    padding: EdgeInsets.all(20),
-                    child: Center(child: CircularProgressIndicator(strokeWidth: 2.5)),
-                  ),
-                )
-              else if (_interviewsError != null)
-                Card(
-                  child: Padding(
-                    padding: const EdgeInsets.all(16),
-                    child: Row(
-                      children: [
-                        Icon(Icons.error_outline_rounded, color: theme.colorScheme.error),
-                        const SizedBox(width: 12),
-                        Expanded(
-                          child: Text(
-                            _interviewsError!,
-                            style: TextStyle(fontSize: 13, color: theme.colorScheme.error),
-                          ),
-                        ),
-                        TextButton(
-                          onPressed: _fetchInterviews,
-                          child: const Text('Thử lại'),
-                        ),
-                      ],
+              Card(
+                clipBehavior: Clip.antiAlias,
+                child: ListTile(
+                  contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
+                  leading: Container(
+                    padding: const EdgeInsets.all(8),
+                    decoration: BoxDecoration(
+                      color: Colors.green.withValues(alpha: 0.12),
+                      borderRadius: BorderRadius.circular(10),
                     ),
+                    child: const Icon(Icons.calendar_month_rounded, color: Colors.green, size: 22),
                   ),
-                )
-              else if (upcomingInterviews.isEmpty)
-                Card(
-                  child: Padding(
-                    padding: const EdgeInsets.all(16),
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Row(
-                          children: [
-                            Icon(Icons.calendar_today_outlined, color: theme.colorScheme.outline),
-                            const SizedBox(width: 12),
-                            const Expanded(
-                              child: Text(
-                                'Chưa có lịch phỏng vấn sắp tới',
-                                style: TextStyle(fontWeight: FontWeight.w600),
-                              ),
-                            ),
-                          ],
-                        ),
-                        const SizedBox(height: 6),
-                        Text(
-                          'Khi nhà tuyển dụng đặt lịch phỏng vấn trực tiếp, thời gian và chi tiết phòng họp sẽ hiển thị ngay tại đây.',
-                          style: TextStyle(fontSize: 12, color: theme.colorScheme.outline),
-                        ),
-                        if (pastCount > 0) ...[
-                          const SizedBox(height: 10),
-                          OutlinedButton.icon(
-                            onPressed: () => _openRouteAndRefresh('/profile/interviews'),
-                            icon: const Icon(Icons.history_rounded, size: 16),
-                            label: Text('Xem $pastCount lịch đã qua / đã hủy'),
-                          ),
-                        ],
-                      ],
-                    ),
+                  title: const Text(
+                    'Lịch phỏng vấn',
+                    style: TextStyle(fontWeight: FontWeight.w600, fontSize: 14.5),
                   ),
-                )
-              else ...[
-                for (final interview in upcomingInterviews.take(3))
-                  InterviewCard(
-                    interview: interview,
-                    compact: true,
-                    onTap: () => _openRouteAndRefresh(
-                      '/profile/interviews/${interview.id}',
-                      extra: interview,
-                    ),
+                  subtitle: Text(
+                    user == null
+                        ? 'Đăng nhập để xem lịch'
+                        : (upcomingInterviews.isNotEmpty
+                            ? 'Có ${upcomingInterviews.length} lịch hẹn sắp tới'
+                            : 'Chưa có lịch hẹn sắp tới'),
+                    style: TextStyle(fontSize: 12.5, color: theme.colorScheme.outline),
                   ),
-                if (upcomingInterviews.length > 3 || pastCount > 0)
-                  Align(
-                    alignment: Alignment.centerRight,
-                    child: TextButton.icon(
-                      onPressed: () => _openRouteAndRefresh('/profile/interviews'),
-                      icon: const Icon(Icons.arrow_forward_rounded, size: 16),
-                      label: Text(
-                        'Xem toàn bộ lịch phỏng vấn (${_interviews.length})',
-                        style: const TextStyle(fontSize: 13),
-                      ),
-                    ),
-                  ),
-              ],
+                  trailing: const Icon(Icons.chevron_right_rounded),
+                  onTap: () {
+                    if (user == null) {
+                      context.push('/login');
+                    } else {
+                      _openRouteAndRefresh('/profile/interviews');
+                    }
+                  },
+                ),
+              ),
               const SizedBox(height: 20),
 
               // App Settings & Actions
@@ -444,26 +330,18 @@ class _ProfileScreenState extends State<ProfileScreen> {
                   children: [
                     ListTile(
                       leading: const Icon(Icons.notifications_none_rounded),
-                      title: const Text('Thông báo tuyển dụng'),
-                      subtitle: Text(
-                        _notificationSubtitle(user != null),
-                        style: TextStyle(fontSize: 12, color: theme.colorScheme.outline),
-                      ),
+                      title: const Text('Cài đặt thông báo'),
                       trailing: const Icon(Icons.chevron_right_rounded),
                       onTap: () => _openRouteAndRefresh('/profile/notifications'),
                     ),
                     const Divider(height: 1),
                     ListTile(
                       leading: const Icon(Icons.info_outline_rounded),
-                      title: const Text('Phiên bản & Máy chủ'),
-                      subtitle: _mobileConfig != null
-                          ? Text(
-                              'Kết nối backend Spring Boot OK · v${_mobileConfig!.latestVersion}',
-                              style: const TextStyle(fontSize: 12, color: Colors.green),
-                            )
-                          : null,
+                      title: const Text('Phiên bản ứng dụng'),
                       trailing: Text(
-                        '1.0.0 (SmarthireAI)',
+                        _mobileConfig != null
+                            ? 'v${_mobileConfig!.latestVersion}'
+                            : '1.0.0 (SmartHire)',
                         style: TextStyle(color: theme.colorScheme.outline, fontSize: 13),
                       ),
                     ),

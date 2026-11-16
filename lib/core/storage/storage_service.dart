@@ -89,4 +89,13 @@ class StorageService {
   Future<void> saveUserData(Map<String, dynamic> data) async {
     await _prefs.setString(_keyUserData, jsonEncode(data));
   }
+
+  // Push Notification Preferences (Messenger / Zalo style)
+  bool isPushNotificationsEnabled() => _prefs.getBool('push_notifications_master') ?? true;
+  Future<void> setPushNotificationsEnabled(bool enabled) =>
+      _prefs.setBool('push_notifications_master', enabled);
+
+  bool isSoundVibrateEnabled() => _prefs.getBool('push_sound_vibrate') ?? true;
+  Future<void> setSoundVibrateEnabled(bool enabled) =>
+      _prefs.setBool('push_sound_vibrate', enabled);
 }

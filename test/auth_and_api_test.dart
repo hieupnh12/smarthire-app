@@ -72,6 +72,25 @@ class _InMemoryStorageService implements StorageService {
   Future<void> saveUserData(Map<String, dynamic> data) async {
     userData = data;
   }
+
+  bool pushEnabled = true;
+  bool soundVibrate = true;
+
+  @override
+  bool isPushNotificationsEnabled() => pushEnabled;
+
+  @override
+  Future<void> setPushNotificationsEnabled(bool enabled) async {
+    pushEnabled = enabled;
+  }
+
+  @override
+  bool isSoundVibrateEnabled() => soundVibrate;
+
+  @override
+  Future<void> setSoundVibrateEnabled(bool enabled) async {
+    soundVibrate = enabled;
+  }
 }
 
 void main() {

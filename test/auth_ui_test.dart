@@ -46,6 +46,7 @@ class _FakeTenantRepository implements TenantRepository {
 void main() {
   testWidgets(
     'CandidateAssessmentListScreen hides login prompt once AuthBloc is Authenticated',
+    timeout: const Timeout(Duration(seconds: 15)),
     (tester) async {
       final repo = _FakeAuthRepository()
         ..userToLogin = const UserModel(
@@ -71,18 +72,21 @@ void main() {
 
       await tester.runAsync(() async {
         authBloc.add(GoogleLoginEvent());
-        await Future<void>.delayed(Duration.zero);
+        await Future<void>.delayed(const Duration(milliseconds: 10));
       });
       await tester.pump();
 
       expect(find.text('Đăng nhập ngay'), findsNothing);
       expect(find.text('Luyện Phỏng Vấn với AI'), findsOneWidget);
       expect(find.text('Bài Test Năng Lực Kỹ Thuật (FE-05)'), findsOneWidget);
+      await tester.pumpWidget(const SizedBox.shrink());
+      await tester.runAsync(() => authBloc.close());
     },
   );
 
   testWidgets(
     'LoginScreen displays persistent inline failure banner when Google Sign-In throws',
+    timeout: const Timeout(Duration(seconds: 15)),
     (tester) async {
       final repo = _FakeAuthRepository()
         ..errorToThrow = Exception(
@@ -103,7 +107,7 @@ void main() {
 
       await tester.runAsync(() async {
         authBloc.add(GoogleLoginEvent());
-        await Future<void>.delayed(Duration.zero);
+        await Future<void>.delayed(const Duration(milliseconds: 10));
       });
       await tester.pump();
 
@@ -122,6 +126,12 @@ void main() {
         ),
         findsOneWidget,
       );
+
+      await tester.pumpWidget(const SizedBox.shrink());
+      await tester.runAsync(() async {
+        await authBloc.close();
+        await tenantBloc.close();
+      });
     },
   );
 }

@@ -4,18 +4,26 @@ class InterviewLabels {
   InterviewLabels._();
 
   static const Map<String, String> _roundLabels = {
-    'TECHNICAL': 'Vòng 1: Kỹ thuật chuyên sâu',
-    'CULTURE': 'Vòng 2: Culture & Leadership',
-    'EXECUTIVE': 'Vòng 3: Ban Giám Đốc',
+    'TECHNICAL': 'Vòng Kỹ thuật',
+    'CULTURE': 'Vòng Văn hóa & Lãnh đạo',
+    'EXECUTIVE': 'Vòng Ban Giám Đốc',
+    'HR': 'Vòng Phỏng Vấn HR',
+    'ROUND_1': 'Phỏng Vấn Vòng 1',
+    'ROUND_2': 'Phỏng Vấn Vòng 2',
+    'ROUND_3': 'Phỏng Vấn Vòng 3',
   };
 
   static const Map<String, String> _statusLabels = {
     'DRAFT': 'Bản nháp',
-    'PROPOSED': 'Chờ xác nhận',
+    'PROPOSED': 'Chờ bạn xác nhận',
     'CONFIRMED': 'Đã xác nhận',
+    'SCHEDULED': 'Đã lên lịch',
+    'IN_PROGRESS': 'Đang diễn ra',
     'RESCHEDULE_REQUESTED': 'Đề nghị đổi giờ',
     'CANCELLED': 'Đã hủy',
-    'DONE': 'Hoàn thành',
+    'DONE': 'Đã hoàn thành',
+    'COMPLETED': 'Đã hoàn thành',
+    'EVALUATED': 'Đã hoàn thành',
   };
 
   static const Map<String, String> _providerLabels = {
@@ -50,15 +58,20 @@ class InterviewLabels {
     switch (status.toUpperCase()) {
       case 'CONFIRMED':
       case 'DONE':
-        return Colors.green.shade700;
+      case 'COMPLETED':
+      case 'EVALUATED':
+      case 'SCHEDULED':
+        return const Color(0xFF059669);
       case 'PROPOSED':
-        return theme.colorScheme.primary;
+        return const Color(0xFF1E60EC);
+      case 'IN_PROGRESS':
+        return const Color(0xFF2563EB);
       case 'RESCHEDULE_REQUESTED':
-        return Colors.orange.shade800;
+        return const Color(0xFFD97706);
       case 'CANCELLED':
         return theme.colorScheme.error;
       default:
-        return theme.colorScheme.secondary;
+        return const Color(0xFF64748B);
     }
   }
 

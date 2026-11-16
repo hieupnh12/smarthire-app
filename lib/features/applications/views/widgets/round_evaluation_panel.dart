@@ -64,13 +64,20 @@ class RoundSummaryCard extends StatelessWidget {
         padding: const EdgeInsets.all(14),
         decoration: BoxDecoration(
           color: selected
-              ? theme.colorScheme.primaryContainer.withValues(alpha: 0.25)
-              : theme.colorScheme.surfaceContainerLowest,
+              ? theme.colorScheme.primary.withValues(alpha: 0.08)
+              : Colors.white,
           borderRadius: BorderRadius.circular(14),
           border: Border.all(
-            color: selected ? theme.colorScheme.primary : theme.colorScheme.outlineVariant,
-            width: selected ? 1.6 : 0.9,
+            color: selected ? theme.colorScheme.primary : const Color(0xFFEBF0F7),
+            width: selected ? 1.5 : 1.0,
           ),
+          boxShadow: [
+            BoxShadow(
+              color: Colors.black.withValues(alpha: 0.02),
+              blurRadius: 6,
+              offset: const Offset(0, 2),
+            ),
+          ],
         ),
         child: Row(
           children: [
@@ -87,47 +94,50 @@ class RoundSummaryCard extends StatelessWidget {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
+                  Text(
+                    roundKey.title,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: theme.textTheme.titleSmall?.copyWith(fontWeight: FontWeight.bold),
+                  ),
+                  const SizedBox(height: 5),
                   Row(
                     children: [
-                      Expanded(
-                        child: Text(
-                          roundKey.title,
-                          style: theme.textTheme.titleSmall?.copyWith(fontWeight: FontWeight.bold),
+                      if (round?.score != null) ...[
+                        Text(
+                          'Điểm: ${ApplicationLabels.formatScore(round!.score!)}${round?.threshold != null ? ' / ${ApplicationLabels.formatScore(round!.threshold!)}' : ''}',
+                          style: TextStyle(
+                            fontSize: 12.5,
+                            fontWeight: FontWeight.w600,
+                            color: theme.colorScheme.onSurface,
+                          ),
                         ),
-                      ),
+                        const SizedBox(width: 8),
+                      ] else ...[
+                        Text(
+                          'Chưa có điểm',
+                          style: TextStyle(fontSize: 12, color: theme.colorScheme.outline),
+                        ),
+                        const SizedBox(width: 8),
+                      ],
                       Container(
-                        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2.5),
                         decoration: BoxDecoration(
                           color: badgeColor.withValues(alpha: 0.12),
-                          borderRadius: BorderRadius.circular(20),
+                          borderRadius: BorderRadius.circular(12),
                           border: Border.all(color: badgeColor.withValues(alpha: 0.3)),
                         ),
                         child: Text(
                           statusLabel,
                           style: TextStyle(
                             fontSize: 11,
-                            fontWeight: FontWeight.w600,
+                            fontWeight: FontWeight.w700,
                             color: badgeColor,
                           ),
                         ),
                       ),
                     ],
                   ),
-                  const SizedBox(height: 6),
-                  if (round?.score != null)
-                    Text(
-                      'Điểm: ${ApplicationLabels.formatScore(round!.score!)}${round?.threshold != null ? ' / ngưỡng ${ApplicationLabels.formatScore(round!.threshold!)}' : ''}',
-                      style: TextStyle(
-                        fontSize: 13,
-                        fontWeight: FontWeight.w600,
-                        color: theme.colorScheme.onSurface,
-                      ),
-                    )
-                  else
-                    Text(
-                      'Chưa có điểm — chạm để xem chi tiết vòng',
-                      style: TextStyle(fontSize: 12, color: theme.colorScheme.outline),
-                    ),
                 ],
               ),
             ),
@@ -149,6 +159,7 @@ class RoundEvaluationPanel extends StatelessWidget {
   final bool loading;
   final String? error;
   final VoidCallback onRetry;
+  final bool showCard;
 
   const RoundEvaluationPanel({
     super.key,
@@ -157,11 +168,39 @@ class RoundEvaluationPanel extends StatelessWidget {
     required this.loading,
     required this.error,
     required this.onRetry,
+    this.showCard = true,
   });
 
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
+
+    Widget content;
+    if (loading) {
+      content = const Padding(
+        padding: EdgeInsets.symmetric(vertical: 24),
+        child: Center(child: CircularProgressIndicator(strokeWidth: 2.5)),
+      );
+    } else if (error != null) {
+      content = Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(error!, style: TextStyle(color: theme.colorScheme.error, fontSize: 13)),
+          const SizedBox(height: 8),
+          OutlinedButton.icon(
+            onPressed: onRetry,
+            icon: const Icon(Icons.refresh_rounded, size: 16),
+            label: const Text('Tải lại đánh giá'),
+          ),
+        ],
+      );
+    } else {
+      content = _buildBody(context);
+    }
+
+    if (!showCard) {
+      return content;
+    }
 
     return Card(
       shape: RoundedRectangleBorder(
@@ -183,26 +222,7 @@ class RoundEvaluationPanel extends StatelessWidget {
               style: TextStyle(fontSize: 12, color: theme.colorScheme.outline),
             ),
             const SizedBox(height: 14),
-            if (loading)
-              const Padding(
-                padding: EdgeInsets.symmetric(vertical: 20),
-                child: Center(child: CircularProgressIndicator(strokeWidth: 2.5)),
-              )
-            else if (error != null)
-              Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(error!, style: TextStyle(color: theme.colorScheme.error, fontSize: 13)),
-                  const SizedBox(height: 8),
-                  OutlinedButton.icon(
-                    onPressed: onRetry,
-                    icon: const Icon(Icons.refresh_rounded, size: 16),
-                    label: const Text('Tải lại đánh giá'),
-                  ),
-                ],
-              )
-            else
-              _buildBody(context),
+            content,
           ],
         ),
       ),
@@ -712,6 +732,8 @@ class _AssessmentAttemptCardState extends State<_AssessmentAttemptCard> {
                   children: [
                     Text(
                       item.testTitle,
+                      maxLines: 2,
+                      overflow: TextOverflow.ellipsis,
                       style: const TextStyle(fontSize: 14, fontWeight: FontWeight.bold),
                     ),
                     if (item.submittedAt != null)
@@ -869,10 +891,15 @@ class _QuestionEvaluationItem extends StatelessWidget {
           Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
-              Text(
-                'Câu ${q?.questionOrder ?? 1} · $typeLabel',
-                style: const TextStyle(fontSize: 12, fontWeight: FontWeight.bold),
+              Expanded(
+                child: Text(
+                  'Câu ${q?.questionOrder ?? 1} · $typeLabel',
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: const TextStyle(fontSize: 12, fontWeight: FontWeight.bold),
+                ),
               ),
+              const SizedBox(width: 8),
               if (earnedScore != null)
                 Container(
                   padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
@@ -1057,7 +1084,11 @@ class _SkillChip extends StatelessWidget {
         icon = Icons.close_rounded;
     }
 
+    final screenWidth = MediaQuery.sizeOf(context).width;
+    final maxChipWidth = (screenWidth - 72).clamp(180.0, 500.0);
+
     return Container(
+      constraints: BoxConstraints(maxWidth: maxChipWidth),
       padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
       decoration: BoxDecoration(
         color: color.withValues(alpha: 0.1),
@@ -1069,9 +1100,13 @@ class _SkillChip extends StatelessWidget {
         children: [
           Icon(icon, size: 14, color: color),
           const SizedBox(width: 4),
-          Text(
-            label,
-            style: TextStyle(fontSize: 12, fontWeight: FontWeight.w500, color: color),
+          Flexible(
+            child: Text(
+              label,
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+              style: TextStyle(fontSize: 12, fontWeight: FontWeight.w500, color: color),
+            ),
           ),
         ],
       ),
@@ -1108,13 +1143,21 @@ class _FactBox extends StatelessWidget {
           const SizedBox(height: 2),
           Text(
             warning ? '$value (chưa đủ)' : value,
+            maxLines: 2,
+            overflow: TextOverflow.ellipsis,
             style: TextStyle(
               fontSize: 13,
               fontWeight: FontWeight.bold,
               color: warning ? theme.colorScheme.error : theme.colorScheme.onSurface,
             ),
           ),
-          Text(hint, style: TextStyle(fontSize: 11, color: theme.colorScheme.outline)),
+          const SizedBox(height: 2),
+          Text(
+            hint,
+            maxLines: 2,
+            overflow: TextOverflow.ellipsis,
+            style: TextStyle(fontSize: 11, color: theme.colorScheme.outline),
+          ),
         ],
       ),
     );

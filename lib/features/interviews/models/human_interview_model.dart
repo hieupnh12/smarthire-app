@@ -114,8 +114,9 @@ class HumanInterviewModel extends Equatable {
 
   factory HumanInterviewModel.fromJson(Map<String, dynamic> json) {
     final now = DateTime.now();
-    final parsedStart = parseDateTime(json['start']) ?? now;
-    final parsedEnd = parseDateTime(json['end']) ?? parsedStart.add(const Duration(hours: 1));
+    final parsedStart = parseDateTime(json['start'] ?? json['scheduledStart'] ?? json['startTime']) ?? now;
+    final parsedEnd = parseDateTime(json['end'] ?? json['scheduledEnd'] ?? json['endTime']) ??
+        parsedStart.add(const Duration(hours: 1));
     final rawParticipants = json['participants'];
     final parsedParticipants = rawParticipants is List
         ? rawParticipants
@@ -137,7 +138,7 @@ class HumanInterviewModel extends Equatable {
       status: json['status'] as String? ?? 'PROPOSED',
       start: parsedStart,
       end: parsedEnd,
-      meetingUrl: json['meetingUrl'] as String?,
+      meetingUrl: json['meetingUrl'] as String? ?? json['meetingLink'] as String?,
       location: json['location'] as String?,
       configuration: InterviewConfigurationModel.fromJson(
         json['configuration'] is Map<String, dynamic>
@@ -153,7 +154,10 @@ class HumanInterviewModel extends Equatable {
     return mins > 0 ? mins : 0;
   }
 
-  bool get isInactive => status == 'CANCELLED' || status == 'DONE';
+  bool get isInactive {
+    final s = status.toUpperCase();
+    return s == 'CANCELLED' || s == 'DONE' || s == 'COMPLETED' || s == 'EVALUATED';
+  }
 
   bool isUpcoming(DateTime now) => !end.isBefore(now) && !isInactive;
 
