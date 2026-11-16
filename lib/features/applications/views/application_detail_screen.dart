@@ -1,10 +1,11 @@
 import 'package:flutter/material.dart';
-import 'package:go_router/go_router.dart';
+import 'package:flutter/services.dart';
 import 'package:intl/intl.dart';
 import '../../../core/di/injection.dart';
+import '../../../core/storage/storage_service.dart';
 import '../../interviews/models/human_interview_model.dart';
 import '../../interviews/repositories/interview_repository.dart';
-import '../../interviews/views/widgets/interview_card.dart';
+import '../../interviews/utils/interview_labels.dart';
 import '../models/application_model.dart';
 import '../repositories/application_repository.dart';
 import '../utils/application_labels.dart';
@@ -28,12 +29,9 @@ class _ApplicationDetailScreenState extends State<ApplicationDetailScreen> {
   ApplicationDetailModel? _detail;
   CandidateEvaluationModel? _evaluation;
   List<HumanInterviewModel> _humanInterviews = const [];
-  bool _loadingDetail = true;
-  bool _loadingEvaluation = true;
-  String? _detailError;
+  bool _isLoading = true;
+  String? _errorMessage;
   String? _evaluationError;
-  EvaluationRoundKey _selectedRound = EvaluationRoundKey.cv;
-  bool _userSelectedRound = false;
   bool _withdrawing = false;
 
   @override
@@ -44,9 +42,8 @@ class _ApplicationDetailScreenState extends State<ApplicationDetailScreen> {
 
   Future<void> _loadAll() async {
     setState(() {
-      _loadingDetail = true;
-      _loadingEvaluation = true;
-      _detailError = null;
+      _isLoading = true;
+      _errorMessage = null;
       _evaluationError = null;
     });
 
@@ -55,25 +52,23 @@ class _ApplicationDetailScreenState extends State<ApplicationDetailScreen> {
       _fetchEvaluation(),
       _fetchHumanInterviews(),
     ]);
+
+    if (mounted) {
+      setState(() {
+        _isLoading = false;
+      });
+    }
   }
 
   Future<void> _fetchDetail() async {
     try {
-      final detail = await getIt<ApplicationRepository>().getApplicationDetail(widget.applicationId);
+      final detail =
+          await getIt<ApplicationRepository>().getApplicationDetail(widget.applicationId);
       if (!mounted) return;
-      setState(() {
-        _detail = detail;
-        _loadingDetail = false;
-        if (!_userSelectedRound) {
-          _selectedRound = _pickDefaultRound(detail, _evaluation);
-        }
-      });
+      setState(() => _detail = detail);
     } catch (e) {
       if (!mounted) return;
-      setState(() {
-        _detailError = e.toString().replaceAll('Exception: ', '');
-        _loadingDetail = false;
-      });
+      setState(() => _errorMessage = e.toString().replaceAll('Exception: ', ''));
     }
   }
 
@@ -84,16 +79,12 @@ class _ApplicationDetailScreenState extends State<ApplicationDetailScreen> {
       if (!mounted) return;
       setState(() {
         _evaluation = evaluation;
-        _loadingEvaluation = false;
-        if (!_userSelectedRound) {
-          _selectedRound = _pickDefaultRound(_detail, evaluation);
-        }
+        _evaluationError = null;
       });
     } catch (e) {
       if (!mounted) return;
       setState(() {
         _evaluationError = e.toString().replaceAll('Exception: ', '');
-        _loadingEvaluation = false;
       });
     }
   }
@@ -106,25 +97,7 @@ class _ApplicationDetailScreenState extends State<ApplicationDetailScreen> {
         _humanInterviews =
             all.where((item) => item.applicationId == widget.applicationId).toList();
       });
-    } catch (_) {
-      // Optional enrichment; main application detail stays unaffected.
-    }
-  }
-
-  EvaluationRoundKey _pickDefaultRound(
-    ApplicationDetailModel? detail,
-    CandidateEvaluationModel? eval,
-  ) {
-    final status = detail?.status.toUpperCase() ?? '';
-    if (status == 'INTERVIEW' && (eval?.aiInterviews.isNotEmpty ?? false)) {
-      return EvaluationRoundKey.aiInterview;
-    }
-    if (status == 'ASSESSMENT' && (eval?.assessments.isNotEmpty ?? false)) {
-      return EvaluationRoundKey.assessment;
-    }
-    if (eval?.assessments.isNotEmpty ?? false) return EvaluationRoundKey.assessment;
-    if (eval?.aiInterviews.isNotEmpty ?? false) return EvaluationRoundKey.aiInterview;
-    return EvaluationRoundKey.cv;
+    } catch (_) {}
   }
 
   Future<void> _confirmWithdraw(ApplicationDetailModel detail) async {
@@ -169,11 +142,18 @@ class _ApplicationDetailScreenState extends State<ApplicationDetailScreen> {
 
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Chi Tiết Ứng Tuyển'),
+        title: const Text('Chi Tiết Hồ Sơ'),
+        actions: [
+          IconButton(
+            tooltip: 'Làm mới',
+            icon: const Icon(Icons.refresh_rounded),
+            onPressed: _isLoading ? null : _loadAll,
+          ),
+        ],
       ),
-      body: _loadingDetail && _detail == null
+      body: _isLoading && _detail == null
           ? const Center(child: CircularProgressIndicator())
-          : _detailError != null && _detail == null
+          : _errorMessage != null && _detail == null
               ? Center(
                   child: Padding(
                     padding: const EdgeInsets.all(24),
@@ -182,7 +162,7 @@ class _ApplicationDetailScreenState extends State<ApplicationDetailScreen> {
                       children: [
                         Icon(Icons.error_outline_rounded, size: 48, color: theme.colorScheme.error),
                         const SizedBox(height: 12),
-                        Text(_detailError!, textAlign: TextAlign.center),
+                        Text(_errorMessage!, textAlign: TextAlign.center),
                         const SizedBox(height: 16),
                         ElevatedButton(
                           onPressed: _loadAll,
@@ -195,23 +175,37 @@ class _ApplicationDetailScreenState extends State<ApplicationDetailScreen> {
               : RefreshIndicator(
                   onRefresh: _loadAll,
                   child: ListView(
-                    physics: const AlwaysScrollableScrollPhysics(),
-                    padding: const EdgeInsets.all(16),
+                    padding: const EdgeInsets.fromLTRB(16, 12, 16, 24),
                     children: [
+                      // 1. Header Card (gọn gàng, đầy đủ thông tin)
                       _buildHeaderCard(theme, _detail, summary),
-                      const SizedBox(height: 18),
-                      if (_detail != null) ...[
-                        _buildRoundsSection(theme, _detail!),
-                        if (_humanInterviews.isNotEmpty) ...[
-                          const SizedBox(height: 18),
-                          _buildHumanInterviewsSection(theme),
-                        ],
-                        const SizedBox(height: 18),
-                        _buildHistorySection(theme, _detail!.history),
-                        if (_detail!.cvs.isNotEmpty) ...[
-                          const SizedBox(height: 18),
-                          _buildCvsSection(theme, _detail!.cvs),
-                        ],
+
+                      const SizedBox(height: 14),
+
+                      // 2. Stepper tiến độ 4 bước
+                      _buildCompactStepper(theme, _detail?.status ?? summary?.status ?? 'NEW'),
+
+                      const SizedBox(height: 14),
+
+                      // 3. Kết quả đánh giá từng vòng
+                      _buildEvaluationResultsSection(theme),
+
+                      // 4. Lịch phỏng vấn trực tiếp
+                      if (_humanInterviews.isNotEmpty) ...[
+                        const SizedBox(height: 14),
+                        _buildInterviewSection(theme),
+                      ],
+
+                      // 5. File CV đính kèm
+                      if (_detail?.cvs.isNotEmpty ?? false) ...[
+                        const SizedBox(height: 14),
+                        _buildCvsSection(theme, _detail!.cvs),
+                      ],
+
+                      // 6. Lịch sử trạng thái
+                      if (_detail?.history.isNotEmpty ?? false) ...[
+                        const SizedBox(height: 14),
+                        _buildCompactHistory(theme, _detail!.history),
                       ],
                     ],
                   ),
@@ -227,140 +221,415 @@ class _ApplicationDetailScreenState extends State<ApplicationDetailScreen> {
     final jobTitle = detail?.jobTitle ?? summary?.jobTitle ?? 'Vị trí ứng tuyển';
     final status = detail?.status ?? summary?.status ?? 'NEW';
     final createdAt = detail?.createdAt ?? summary?.createdAt;
-    final metaTags = detail?.metaTags ?? summary?.metaTags ?? const [];
-    final jobId = detail?.jobId ?? summary?.jobId ?? 0;
     final statusColor = ApplicationLabels.statusColor(status, theme);
+    final statusText = ApplicationLabels.statusLabel(status);
+    final canWithdraw = detail?.withdrawable ?? false;
 
-    return Card(
-      child: Padding(
-        padding: const EdgeInsets.all(16),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Row(
-              crossAxisAlignment: CrossAxisAlignment.start,
+    return Container(
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: const Color(0xFFE2E8F0)),
+        boxShadow: [
+          BoxShadow(
+            color: const Color(0xFF0F172A).withValues(alpha: 0.03),
+            blurRadius: 8,
+            offset: const Offset(0, 2),
+          ),
+        ],
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Expanded(
+                child: Text(
+                  jobTitle,
+                  style: const TextStyle(
+                    fontSize: 17,
+                    fontWeight: FontWeight.w700,
+                    color: Color(0xFF0F172A),
+                    letterSpacing: -0.2,
+                  ),
+                ),
+              ),
+              const SizedBox(width: 8),
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                decoration: BoxDecoration(
+                  color: statusColor.withValues(alpha: 0.1),
+                  borderRadius: BorderRadius.circular(16),
+                  border: Border.all(color: statusColor.withValues(alpha: 0.2)),
+                ),
+                child: Text(
+                  statusText,
+                  style: TextStyle(
+                    fontSize: 12,
+                    fontWeight: FontWeight.w700,
+                    color: statusColor,
+                  ),
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 8),
+          Wrap(
+            spacing: 6,
+            runSpacing: 4,
+            crossAxisAlignment: WrapCrossAlignment.center,
+            children: [
+              Text(
+                'Mã hồ sơ: #${detail?.id ?? summary?.id ?? widget.applicationId}',
+                style: const TextStyle(fontSize: 12, color: Color(0xFF64748B), fontWeight: FontWeight.w500),
+              ),
+              if (createdAt != null) ...[
+                const Text('·', style: TextStyle(color: Color(0xFFCBD5E1))),
+                Text(
+                  'Nộp ngày ${DateFormat('dd/MM/yyyy').format(createdAt)}',
+                  style: const TextStyle(fontSize: 12, color: Color(0xFF64748B)),
+                ),
+              ],
+            ],
+          ),
+          if (canWithdraw) ...[
+            const SizedBox(height: 12),
+            Align(
+              alignment: Alignment.centerRight,
+              child: OutlinedButton.icon(
+                onPressed: _withdrawing ? null : () => _confirmWithdraw(detail!),
+                style: OutlinedButton.styleFrom(
+                  foregroundColor: const Color(0xFFDC2626),
+                  side: const BorderSide(color: Color(0xFFFCA5A5)),
+                  padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                  visualDensity: VisualDensity.compact,
+                ),
+                icon: const Icon(Icons.cancel_outlined, size: 14),
+                label: const Text('Rút hồ sơ', style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600)),
+              ),
+            ),
+          ],
+        ],
+      ),
+    );
+  }
+
+  Widget _buildCompactStepper(ThemeData theme, String status) {
+    final current = ApplicationLabels.pipelineIndex(status);
+    final ended = current < 0;
+    final isHired = status.toUpperCase() == 'HIRED';
+
+    const steps = ['Lọc CV', 'Bài test', 'Phỏng vấn', 'Kết quả'];
+
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: const Color(0xFFE2E8F0)),
+      ),
+      child: Row(
+        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+        children: List.generate(steps.length, (index) {
+          final isCompleted = !ended && (index < current || (isHired && index == current));
+          final isCurrent = !ended && index == current;
+
+          final Color dotColor = isCompleted
+              ? const Color(0xFF059669)
+              : (isCurrent ? const Color(0xFF1E60EC) : const Color(0xFFE2E8F0));
+          final Color textColor = isCompleted || isCurrent
+              ? const Color(0xFF0F172A)
+              : const Color(0xFF94A3B8);
+
+          return Expanded(
+            child: Row(
               children: [
-                Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(
-                        'Đơn ứng tuyển #${widget.applicationId}',
-                        style: TextStyle(
-                          fontSize: 12,
-                          fontWeight: FontWeight.bold,
-                          color: theme.colorScheme.primary,
+                Column(
+                  children: [
+                    Container(
+                      width: 22,
+                      height: 22,
+                      decoration: BoxDecoration(
+                        shape: BoxShape.circle,
+                        color: isCompleted ? dotColor : Colors.white,
+                        border: Border.all(
+                          color: dotColor,
+                          width: isCurrent ? 2 : 1.5,
                         ),
                       ),
-                      const SizedBox(height: 4),
+                      child: Center(
+                        child: isCompleted
+                            ? const Icon(Icons.check_rounded, size: 13, color: Colors.white)
+                            : Container(
+                                width: 6,
+                                height: 6,
+                                decoration: BoxDecoration(
+                                  shape: BoxShape.circle,
+                                  color: isCurrent ? dotColor : Colors.transparent,
+                                ),
+                              ),
+                      ),
+                    ),
+                    const SizedBox(height: 4),
+                    Text(
+                      steps[index],
+                      style: TextStyle(
+                        fontSize: 11,
+                        fontWeight: isCurrent ? FontWeight.w700 : FontWeight.w500,
+                        color: textColor,
+                      ),
+                    ),
+                  ],
+                ),
+                if (index < steps.length - 1)
+                  Expanded(
+                    child: Container(
+                      height: 2,
+                      margin: const EdgeInsets.only(bottom: 18),
+                      color: isCompleted ? const Color(0xFF059669) : const Color(0xFFE2E8F0),
+                    ),
+                  ),
+              ],
+            ),
+          );
+        }),
+      ),
+    );
+  }
+
+  Widget _buildEvaluationResultsSection(ThemeData theme) {
+    final eval = _evaluation;
+    final cv = eval?.cv;
+    final assessments = eval?.assessments ?? const [];
+    final aiInterviews = eval?.aiInterviews ?? const [];
+
+    return Container(
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: const Color(0xFFE2E8F0)),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              const Expanded(
+                child: Text(
+                  'KẾT QUẢ ĐÁNH GIÁ & FEEDBACK',
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: TextStyle(
+                    fontSize: 12,
+                    fontWeight: FontWeight.w700,
+                    letterSpacing: 0.5,
+                    color: Color(0xFF64748B),
+                  ),
+                ),
+              ),
+              const SizedBox(width: 8),
+              Text(
+                'Xem chi tiết',
+                style: TextStyle(fontSize: 11.5, color: theme.colorScheme.primary, fontWeight: FontWeight.w600),
+              ),
+            ],
+          ),
+          const SizedBox(height: 12),
+
+          // Vòng 1: Lọc CV
+          _buildSelectableRoundRow(
+            theme: theme,
+            roundKey: EvaluationRoundKey.cv,
+            icon: Icons.description_outlined,
+            title: 'Sàng lọc hồ sơ CV',
+            scoreText: cv != null ? '${cv.score.toStringAsFixed(1)} / 100' : 'Đang xử lý',
+            statusTag: cv != null
+                ? (cv.passed ? 'ĐẠT' : 'CHƯA ĐẠT')
+                : 'ĐANG XỬ LÝ',
+            isPassed: cv?.passed,
+            onTap: () => _openRoundEvaluationSheet(EvaluationRoundKey.cv),
+          ),
+
+          const SizedBox(height: 8),
+
+          // Vòng 2: Bài test kỹ thuật
+          _buildSelectableRoundRow(
+            theme: theme,
+            roundKey: EvaluationRoundKey.assessment,
+            icon: Icons.quiz_outlined,
+            title: assessments.isNotEmpty ? assessments.first.testTitle : 'Bài test năng lực',
+            scoreText: assessments.isNotEmpty && assessments.first.score != null
+                ? '${assessments.first.score!.toStringAsFixed(1)} / 100'
+                : (assessments.isNotEmpty ? 'Chưa có điểm' : '--'),
+            statusTag: assessments.isNotEmpty
+                ? (assessments.first.passed == true
+                    ? 'ĐẠT'
+                    : (assessments.first.passed == false
+                        ? 'CHƯA ĐẠT'
+                        : (assessments.first.status == 'SUBMITTED' ? 'ĐÃ NỘP' : 'CHƯA LÀM')))
+                : 'CHƯA CHỈ ĐỊNH',
+            isPassed: assessments.isNotEmpty ? assessments.first.passed : null,
+            onTap: () => _openRoundEvaluationSheet(EvaluationRoundKey.assessment),
+          ),
+
+          const SizedBox(height: 8),
+
+          // Vòng 3: Phỏng vấn AI
+          _buildSelectableRoundRow(
+            theme: theme,
+            roundKey: EvaluationRoundKey.aiInterview,
+            icon: Icons.smart_toy_outlined,
+            title: aiInterviews.isNotEmpty
+                ? 'Phỏng vấn AI (${aiInterviews.length} lượt)'
+                : 'Phỏng vấn AI',
+            scoreText: aiInterviews.isNotEmpty && aiInterviews.first.score != null
+                ? '${aiInterviews.first.score!.toStringAsFixed(1)} / 100'
+                : (aiInterviews.isNotEmpty ? 'Chưa có điểm' : '--'),
+            statusTag: aiInterviews.isNotEmpty
+                ? (aiInterviews.first.passed == true ? 'ĐẠT' : (aiInterviews.first.passed == false ? 'CHƯA ĐẠT' : 'CHƯA HOÀN TẤT'))
+                : 'CHƯA CHỈ ĐỊNH',
+            isPassed: aiInterviews.isNotEmpty ? aiInterviews.first.passed : null,
+            onTap: () => _openRoundEvaluationSheet(EvaluationRoundKey.aiInterview),
+          ),
+        ],
+      ),
+    );
+  }
+
+  void _openRoundEvaluationSheet(EvaluationRoundKey roundKey) {
+    if (_evaluation == null) {
+      _fetchEvaluation();
+    }
+
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: Colors.white,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
+      ),
+      builder: (ctx) {
+        return _EvaluationModalSheet(
+          applicationId: widget.applicationId,
+          roundKey: roundKey,
+          jobTitle: _detail?.jobTitle ?? widget.initialApplication?.jobTitle ?? 'Vị trí ứng tuyển',
+          initialEvaluation: _evaluation,
+          initialError: _evaluationError,
+          onEvaluationLoaded: (ev) {
+            if (mounted) {
+              setState(() => _evaluation = ev);
+            }
+          },
+        );
+      },
+    );
+  }
+
+  Widget _buildSelectableRoundRow({
+    required ThemeData theme,
+    required EvaluationRoundKey roundKey,
+    required IconData icon,
+    required String title,
+    required String scoreText,
+    required String statusTag,
+    required bool? isPassed,
+    required VoidCallback onTap,
+  }) {
+    final Color badgeColor = isPassed == true
+        ? const Color(0xFF059669)
+        : (isPassed == false ? const Color(0xFFDC2626) : const Color(0xFF64748B));
+    final Color badgeBg = isPassed == true
+        ? const Color(0xFFECFDF5)
+        : (isPassed == false ? const Color(0xFFFEF2F2) : const Color(0xFFF1F5F9));
+
+    return InkWell(
+      onTap: onTap,
+      borderRadius: BorderRadius.circular(12),
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 11),
+        decoration: BoxDecoration(
+          color: const Color(0xFFF8FAFC),
+          borderRadius: BorderRadius.circular(12),
+          border: Border.all(color: const Color(0xFFE2E8F0)),
+        ),
+        child: Row(
+          children: [
+            Container(
+              padding: const EdgeInsets.all(7),
+              decoration: BoxDecoration(
+                color: const Color(0xFFEFF6FF),
+                borderRadius: BorderRadius.circular(8),
+              ),
+              child: Icon(
+                icon,
+                size: 18,
+                color: const Color(0xFF2563EB),
+              ),
+            ),
+            const SizedBox(width: 10),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    title,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: const TextStyle(
+                      fontSize: 13.5,
+                      fontWeight: FontWeight.w600,
+                      color: Color(0xFF0F172A),
+                    ),
+                  ),
+                  const SizedBox(height: 3),
+                  Wrap(
+                    spacing: 6,
+                    runSpacing: 4,
+                    crossAxisAlignment: WrapCrossAlignment.center,
+                    children: [
                       Text(
-                        jobTitle,
-                        style: theme.textTheme.titleLarge?.copyWith(fontWeight: FontWeight.bold),
+                        scoreText.contains('điểm') || scoreText.contains('Đang') || scoreText == '--'
+                            ? scoreText
+                            : 'Điểm: $scoreText',
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: const TextStyle(
+                          fontSize: 12,
+                          fontWeight: FontWeight.w600,
+                          color: Color(0xFF475569),
+                        ),
+                      ),
+                      Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 6.5, vertical: 2),
+                        decoration: BoxDecoration(
+                          color: badgeBg,
+                          borderRadius: BorderRadius.circular(4),
+                          border: Border.all(color: badgeColor.withValues(alpha: 0.2)),
+                        ),
+                        child: Text(
+                          statusTag,
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                          style: TextStyle(
+                            fontSize: 10,
+                            fontWeight: FontWeight.w700,
+                            color: badgeColor,
+                          ),
+                        ),
                       ),
                     ],
                   ),
-                ),
-                const SizedBox(width: 10),
-                Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
-                  decoration: BoxDecoration(
-                    color: statusColor.withValues(alpha: 0.12),
-                    borderRadius: BorderRadius.circular(20),
-                    border: Border.all(color: statusColor.withValues(alpha: 0.3)),
-                  ),
-                  child: Text(
-                    ApplicationLabels.statusLabel(status),
-                    style: TextStyle(
-                      fontSize: 12,
-                      fontWeight: FontWeight.w600,
-                      color: statusColor,
-                    ),
-                  ),
-                ),
-              ],
+                ],
+              ),
             ),
-            if (createdAt != null) ...[
-              const SizedBox(height: 8),
-              Row(
-                children: [
-                  Icon(Icons.calendar_today_outlined, size: 14, color: theme.colorScheme.outline),
-                  const SizedBox(width: 6),
-                  Text(
-                    'Ngày nộp: ${DateFormat('dd/MM/yyyy HH:mm').format(createdAt)}',
-                    style: TextStyle(fontSize: 12, color: theme.colorScheme.outline),
-                  ),
-                ],
-              ),
-            ],
-            if (metaTags.isNotEmpty) ...[
-              const SizedBox(height: 10),
-              Wrap(
-                spacing: 6,
-                runSpacing: 6,
-                children: [
-                  for (final tag in metaTags)
-                    Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
-                      decoration: BoxDecoration(
-                        color: theme.colorScheme.surfaceContainerLow,
-                        borderRadius: BorderRadius.circular(16),
-                      ),
-                      child: Text(
-                        tag,
-                        style: TextStyle(fontSize: 11, color: theme.colorScheme.onSurfaceVariant),
-                      ),
-                    ),
-                ],
-              ),
-            ],
-            const SizedBox(height: 16),
-            _PipelineStepper(status: status),
-            if (detail?.rejectReason?.trim().isNotEmpty == true ||
-                detail?.withdrawReason?.trim().isNotEmpty == true) ...[
-              const SizedBox(height: 12),
-              Container(
-                width: double.infinity,
-                padding: const EdgeInsets.all(12),
-                decoration: BoxDecoration(
-                  color: theme.colorScheme.surfaceContainerLow,
-                  borderRadius: BorderRadius.circular(10),
-                ),
-                child: Text(
-                  detail?.rejectReason?.trim().isNotEmpty == true
-                      ? 'Lý do kết thúc: ${detail!.rejectReason}'
-                      : 'Lý do rút đơn: ${detail!.withdrawReason}',
-                  style: TextStyle(fontSize: 12, color: theme.colorScheme.onSurfaceVariant),
-                ),
-              ),
-            ],
-            const SizedBox(height: 14),
-            Wrap(
-              spacing: 8,
-              runSpacing: 8,
-              children: [
-                if (jobId > 0)
-                  OutlinedButton.icon(
-                    onPressed: () => context.push('/jobs/$jobId'),
-                    icon: const Icon(Icons.work_outline_rounded, size: 16),
-                    label: const Text('Xem công việc'),
-                  ),
-                if (status.toUpperCase() == 'HUMAN_INTERVIEW')
-                  ElevatedButton.icon(
-                    onPressed: () => context.push('/profile/interviews'),
-                    icon: const Icon(Icons.event_available_outlined, size: 16),
-                    label: const Text('Lịch phỏng vấn trực tiếp'),
-                  ),
-                if (detail != null && detail.withdrawable)
-                  OutlinedButton.icon(
-                    onPressed: _withdrawing ? null : () => _confirmWithdraw(detail),
-                    style: OutlinedButton.styleFrom(
-                      foregroundColor: theme.colorScheme.error,
-                      side: BorderSide(color: theme.colorScheme.error),
-                    ),
-                    icon: const Icon(Icons.cancel_outlined, size: 16),
-                    label: Text(_withdrawing ? 'Đang rút...' : 'Rút đơn'),
-                  ),
-              ],
+            const SizedBox(width: 6),
+            const Icon(
+              Icons.chevron_right_rounded,
+              size: 20,
+              color: Color(0xFF94A3B8),
             ),
           ],
         ),
@@ -368,345 +637,253 @@ class _ApplicationDetailScreenState extends State<ApplicationDetailScreen> {
     );
   }
 
-  Widget _buildRoundsSection(ThemeData theme, ApplicationDetailModel detail) {
-    final rounds = detail.rounds;
-    final roundItems = {
-      EvaluationRoundKey.cv: rounds?.cv,
-      EvaluationRoundKey.aiInterview: rounds?.aiInterview,
-      EvaluationRoundKey.assessment: rounds?.assessment,
-    };
-
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Text(
-          'ĐÁNH GIÁ CHI TIẾT CÁC VÒNG',
-          style: theme.textTheme.labelMedium?.copyWith(
-            fontWeight: FontWeight.bold,
-            color: theme.colorScheme.outline,
-          ),
-        ),
-        const SizedBox(height: 4),
-        Text(
-          'Chạm vào từng vòng để xem điểm số, nhận xét AI và lý do kết quả.',
-          style: TextStyle(fontSize: 12, color: theme.colorScheme.outline),
-        ),
-        const SizedBox(height: 10),
-        for (final key in EvaluationRoundKey.values) ...[
-          RoundSummaryCard(
-            roundKey: key,
-            round: roundItems[key],
-            selected: _selectedRound == key,
-            onTap: () => setState(() {
-              _userSelectedRound = true;
-              _selectedRound = key;
-            }),
-          ),
-          const SizedBox(height: 8),
-        ],
-        const SizedBox(height: 6),
-        RoundEvaluationPanel(
-          roundKey: _selectedRound,
-          evaluation: _evaluation,
-          loading: _loadingEvaluation,
-          error: _evaluationError,
-          onRetry: _fetchEvaluation,
-        ),
-      ],
-    );
-  }
-
-  Widget _buildHumanInterviewsSection(ThemeData theme) {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Text(
-          'LỊCH PHỎNG VẤN TRỰC TIẾP',
-          style: theme.textTheme.labelMedium?.copyWith(
-            fontWeight: FontWeight.bold,
-            color: theme.colorScheme.outline,
-          ),
-        ),
-        const SizedBox(height: 8),
-        for (final interview in _humanInterviews)
-          InterviewCard(
-            interview: interview,
-            compact: true,
-            onTap: () async {
-              await context.push('/profile/interviews/${interview.id}', extra: interview);
-              if (mounted) {
-                await _loadAll();
-              }
-            },
-          ),
-      ],
-    );
-  }
-
-  Widget _buildHistorySection(ThemeData theme, List<ApplicationHistoryModel> history) {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Text(
-          'LỊCH SỬ TRẠNG THÁI & CÁC VÒNG',
-          style: theme.textTheme.labelMedium?.copyWith(
-            fontWeight: FontWeight.bold,
-            color: theme.colorScheme.outline,
-          ),
-        ),
-        const SizedBox(height: 8),
-        Card(
-          child: Padding(
-            padding: const EdgeInsets.all(16),
-            child: history.isEmpty
-                ? Text(
-                    'Chưa có lịch sử cập nhật mới.',
-                    style: TextStyle(fontSize: 13, color: theme.colorScheme.outline),
-                  )
-                : Column(
-                    children: [
-                      for (int i = 0; i < history.length; i++)
-                        _HistoryTimelineRow(
-                          item: history[i],
-                          isLast: i == history.length - 1,
-                        ),
-                    ],
-                  ),
-          ),
-        ),
-      ],
-    );
-  }
-
-  Widget _buildCvsSection(ThemeData theme, List<CvRefModel> cvs) {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Text(
-          'CV ĐÃ NỘP',
-          style: theme.textTheme.labelMedium?.copyWith(
-            fontWeight: FontWeight.bold,
-            color: theme.colorScheme.outline,
-          ),
-        ),
-        const SizedBox(height: 8),
-        Card(
-          child: Column(
-            children: [
-              for (int i = 0; i < cvs.length; i++) ...[
-                ListTile(
-                  leading: Icon(Icons.picture_as_pdf_outlined, color: theme.colorScheme.primary),
-                  title: Text(
-                    cvs[i].originalFilename,
-                    style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w600),
-                  ),
-                  subtitle: cvs[i].createdAt != null
-                      ? Text(
-                          'Tải lên: ${DateFormat('dd/MM/yyyy HH:mm').format(cvs[i].createdAt!)}',
-                          style: TextStyle(fontSize: 12, color: theme.colorScheme.outline),
-                        )
-                      : null,
-                  trailing: Text(
-                    cvs[i].status,
-                    style: TextStyle(
-                      fontSize: 11,
-                      fontWeight: FontWeight.w600,
-                      color: theme.colorScheme.primary,
-                    ),
-                  ),
-                ),
-                if (i < cvs.length - 1) const Divider(height: 1),
-              ],
-            ],
-          ),
-        ),
-      ],
-    );
-  }
-}
-
-class _PipelineStepper extends StatelessWidget {
-  final String status;
-
-  const _PipelineStepper({required this.status});
-
-  @override
-  Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-    final steps = ApplicationLabels.pipelineSteps;
-    final current = ApplicationLabels.pipelineIndex(status);
-    final ended = current < 0;
-    final hired = status.toUpperCase() == 'HIRED';
+  Widget _buildInterviewSection(ThemeData theme) {
+    final tenantCode = getIt<StorageService>().getTenantCode();
 
     return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 12),
+      padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
-        color: theme.colorScheme.surfaceContainerLow,
-        borderRadius: BorderRadius.circular(12),
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: const Color(0xFFE2E8F0)),
       ),
       child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          if (ended)
-            Padding(
-              padding: const EdgeInsets.only(bottom: 8),
-              child: Text(
-                'Quy trình ứng tuyển đã kết thúc',
-                style: TextStyle(
-                  fontSize: 12,
-                  fontWeight: FontWeight.w600,
-                  color: theme.colorScheme.onSurfaceVariant,
-                ),
+          const Text(
+            'LỊCH PHỎNG VẤN TRỰC TIẾP',
+            style: TextStyle(
+              fontSize: 12,
+              fontWeight: FontWeight.w700,
+              letterSpacing: 0.5,
+              color: Color(0xFF64748B),
+            ),
+          ),
+          const SizedBox(height: 12),
+          for (final interview in _humanInterviews) ...[
+            Container(
+              padding: const EdgeInsets.all(12),
+              decoration: BoxDecoration(
+                color: const Color(0xFFF8FAFC),
+                borderRadius: BorderRadius.circular(12),
+                border: Border.all(color: const Color(0xFFE2E8F0)),
               ),
-            ),
-          Row(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              for (int i = 0; i < steps.length; i++)
-                Expanded(
-                  child: Column(
-                    children: [
-                      Container(
-                        width: 26,
-                        height: 26,
-                        alignment: Alignment.center,
-                        decoration: BoxDecoration(
-                          shape: BoxShape.circle,
-                          color: !ended && (i < current || (hired && i == current))
-                              ? theme.colorScheme.primary
-                              : Colors.white,
-                          border: Border.all(
-                            color: !ended && i <= current
-                                ? theme.colorScheme.primary
-                                : theme.colorScheme.outlineVariant,
-                            width: !ended && i == current ? 2 : 1.5,
-                          ),
-                        ),
-                        child: !ended && (i < current || (hired && i == current))
-                            ? const Icon(Icons.check_rounded, size: 14, color: Colors.white)
-                            : Text(
-                                '${i + 1}',
-                                style: TextStyle(
-                                  fontSize: 11,
-                                  fontWeight: FontWeight.bold,
-                                  color: !ended && i == current
-                                      ? theme.colorScheme.primary
-                                      : theme.colorScheme.outline,
-                                ),
-                              ),
-                      ),
-                      const SizedBox(height: 6),
-                      Text(
-                        steps[i].label,
-                        textAlign: TextAlign.center,
-                        maxLines: 2,
-                        overflow: TextOverflow.ellipsis,
-                        style: TextStyle(
-                          fontSize: 10.5,
-                          fontWeight: !ended && i == current ? FontWeight.bold : FontWeight.w500,
-                          color: !ended && i <= current
-                              ? theme.colorScheme.onSurface
-                              : theme.colorScheme.outline,
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-            ],
-          ),
-        ],
-      ),
-    );
-  }
-}
-
-class _HistoryTimelineRow extends StatelessWidget {
-  final ApplicationHistoryModel item;
-  final bool isLast;
-
-  const _HistoryTimelineRow({
-    required this.item,
-    required this.isLast,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-    final toLabel = ApplicationLabels.statusLabel(item.toStatus);
-    final fromLabel =
-        item.fromStatus != null ? ApplicationLabels.statusLabel(item.fromStatus!) : null;
-    final title = (fromLabel != null && fromLabel != toLabel)
-        ? '$fromLabel → $toLabel'
-        : toLabel;
-
-    return IntrinsicHeight(
-      child: Row(
-        crossAxisAlignment: CrossAxisAlignment.stretch,
-        children: [
-          SizedBox(
-            width: 22,
-            child: Column(
-              children: [
-                Container(
-                  margin: const EdgeInsets.only(top: 4),
-                  width: 11,
-                  height: 11,
-                  decoration: BoxDecoration(
-                    shape: BoxShape.circle,
-                    color: theme.colorScheme.primary,
-                    border: Border.all(
-                      color: theme.colorScheme.primaryContainer,
-                      width: 2.5,
-                    ),
-                  ),
-                ),
-                if (!isLast)
-                  Expanded(
-                    child: Container(
-                      width: 1.5,
-                      color: theme.colorScheme.outlineVariant,
-                    ),
-                  ),
-              ],
-            ),
-          ),
-          const SizedBox(width: 10),
-          Expanded(
-            child: Padding(
-              padding: EdgeInsets.only(bottom: isLast ? 0 : 16),
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   Row(
-                    crossAxisAlignment: CrossAxisAlignment.start,
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
                     children: [
                       Expanded(
                         child: Text(
-                          title,
-                          style: const TextStyle(fontSize: 13.5, fontWeight: FontWeight.bold),
+                          InterviewLabels.roundLabel(interview.round),
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                          style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w700, color: Color(0xFF0F172A)),
                         ),
                       ),
-                      if (item.createdAt != null)
-                        Text(
-                          DateFormat('dd/MM/yyyy HH:mm').format(item.createdAt!),
-                          style: TextStyle(fontSize: 11, color: theme.colorScheme.outline),
+                      const SizedBox(width: 8),
+                      Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                        decoration: BoxDecoration(
+                          color: InterviewLabels.statusColor(interview.status, theme).withValues(alpha: 0.1),
+                          borderRadius: BorderRadius.circular(12),
                         ),
+                        child: Text(
+                          InterviewLabels.statusLabel(interview.status),
+                          style: TextStyle(
+                            fontSize: 11,
+                            fontWeight: FontWeight.w700,
+                            color: InterviewLabels.statusColor(interview.status, theme),
+                          ),
+                        ),
+                      ),
                     ],
                   ),
-                  if (item.note != null && item.note!.trim().isNotEmpty) ...[
-                    const SizedBox(height: 3),
-                    Text(
-                      item.note!.trim(),
-                      style: TextStyle(
-                        fontSize: 12.5,
-                        color: theme.colorScheme.onSurfaceVariant,
-                        height: 1.4,
+                  const SizedBox(height: 8),
+                  Row(
+                    children: [
+                      const Icon(Icons.event_outlined, size: 14, color: Color(0xFF2563EB)),
+                      const SizedBox(width: 6),
+                      Expanded(
+                        child: Text(
+                          '${DateFormat('dd/MM/yyyy · HH:mm').format(interview.start)} – ${DateFormat('HH:mm').format(interview.end)}',
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                          style: const TextStyle(fontSize: 12.5, fontWeight: FontWeight.w600, color: Color(0xFF0F172A)),
+                        ),
                       ),
-                    ),
-                  ],
+                    ],
+                  ),
+                  const SizedBox(height: 6),
+                  Row(
+                    children: [
+                      Icon(
+                        interview.mode.toUpperCase() == 'ONLINE'
+                            ? Icons.videocam_outlined
+                            : Icons.location_on_outlined,
+                        size: 14,
+                        color: const Color(0xFF64748B),
+                      ),
+                      const SizedBox(width: 6),
+                      Expanded(
+                        child: Text(
+                          interview.mode.toUpperCase() == 'ONLINE'
+                              ? InterviewLabels.providerLabel(interview.configuration.provider, interview.mode)
+                              : (interview.location ?? 'Tại văn phòng'),
+                          maxLines: 2,
+                          overflow: TextOverflow.ellipsis,
+                          style: const TextStyle(fontSize: 12, color: Color(0xFF64748B)),
+                        ),
+                      ),
+                      if (interview.meetingUrl != null && interview.meetingUrl!.isNotEmpty) ...[
+                        const SizedBox(width: 6),
+                        InkWell(
+                          onTap: () {
+                            final resolved = InterviewLabels.resolveMeetingUrl(interview.meetingUrl, tenantCode);
+                            Clipboard.setData(ClipboardData(text: resolved));
+                            ScaffoldMessenger.of(context).showSnackBar(
+                              SnackBar(
+                                content: Text('Đã sao chép link phòng họp: $resolved'),
+                                duration: const Duration(seconds: 2),
+                              ),
+                            );
+                          },
+                          child: const Padding(
+                            padding: EdgeInsets.symmetric(horizontal: 4, vertical: 2),
+                            child: Row(
+                              children: [
+                                Icon(Icons.copy_rounded, size: 12, color: Color(0xFF1E60EC)),
+                                SizedBox(width: 4),
+                                Text(
+                                  'Chép link',
+                                  style: TextStyle(fontSize: 11.5, fontWeight: FontWeight.w700, color: Color(0xFF1E60EC)),
+                                ),
+                              ],
+                            ),
+                          ),
+                        ),
+                      ],
+                    ],
+                  ),
                 ],
               ),
             ),
+            const SizedBox(height: 8),
+          ],
+        ],
+      ),
+    );
+  }
+
+  Widget _buildCvsSection(ThemeData theme, List<CvRefModel> cvs) {
+    return Container(
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: const Color(0xFFE2E8F0)),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          const Text(
+            'HỒ SƠ CV ĐÍNH KÈM',
+            style: TextStyle(
+              fontSize: 12,
+              fontWeight: FontWeight.w700,
+              letterSpacing: 0.5,
+              color: Color(0xFF64748B),
+            ),
           ),
+          const SizedBox(height: 10),
+          for (final cv in cvs)
+            Container(
+              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+              decoration: BoxDecoration(
+                color: const Color(0xFFF8FAFC),
+                borderRadius: BorderRadius.circular(10),
+                border: Border.all(color: const Color(0xFFE2E8F0)),
+              ),
+              child: Row(
+                children: [
+                  const Icon(Icons.picture_as_pdf_rounded, size: 22, color: Color(0xFFDC2626)),
+                  const SizedBox(width: 10),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          cv.originalFilename,
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                          style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w600, color: Color(0xFF0F172A)),
+                        ),
+                        if (cv.createdAt != null)
+                          Text(
+                            'Tải lên ngày ${DateFormat('dd/MM/yyyy').format(cv.createdAt!)}',
+                            style: const TextStyle(fontSize: 11, color: Color(0xFF94A3B8)),
+                          ),
+                      ],
+                    ),
+                  ),
+                ],
+              ),
+            ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildCompactHistory(ThemeData theme, List<ApplicationHistoryModel> history) {
+    return Container(
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: const Color(0xFFE2E8F0)),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          const Text(
+            'LỊCH SỬ CẬP NHẬT',
+            style: TextStyle(
+              fontSize: 12,
+              fontWeight: FontWeight.w700,
+              letterSpacing: 0.5,
+              color: Color(0xFF64748B),
+            ),
+          ),
+          const SizedBox(height: 10),
+          for (int i = 0; i < history.take(4).length; i++) ...[
+            Row(
+              children: [
+                Container(
+                  width: 6,
+                  height: 6,
+                  decoration: const BoxDecoration(
+                    shape: BoxShape.circle,
+                    color: Color(0xFF94A3B8),
+                  ),
+                ),
+                const SizedBox(width: 8),
+                Expanded(
+                  child: Text(
+                    ApplicationLabels.statusLabel(history[i].toStatus),
+                    style: const TextStyle(fontSize: 12.5, fontWeight: FontWeight.w600, color: Color(0xFF334155)),
+                  ),
+                ),
+                if (history[i].createdAt != null)
+                  Text(
+                    DateFormat('dd/MM/yyyy').format(history[i].createdAt!),
+                    style: const TextStyle(fontSize: 11, color: Color(0xFF94A3B8)),
+                  ),
+              ],
+            ),
+            if (i < history.take(4).length - 1)
+              const SizedBox(height: 8),
+          ],
         ],
       ),
     );
@@ -765,6 +942,174 @@ class _WithdrawConfirmDialogState extends State<_WithdrawConfirmDialog> {
           child: const Text('Xác nhận rút đơn'),
         ),
       ],
+    );
+  }
+}
+
+class _EvaluationModalSheet extends StatefulWidget {
+  final int applicationId;
+  final EvaluationRoundKey roundKey;
+  final String jobTitle;
+  final CandidateEvaluationModel? initialEvaluation;
+  final String? initialError;
+  final ValueChanged<CandidateEvaluationModel>? onEvaluationLoaded;
+
+  const _EvaluationModalSheet({
+    required this.applicationId,
+    required this.roundKey,
+    required this.jobTitle,
+    required this.initialEvaluation,
+    this.initialError,
+    this.onEvaluationLoaded,
+  });
+
+  @override
+  State<_EvaluationModalSheet> createState() => _EvaluationModalSheetState();
+}
+
+class _EvaluationModalSheetState extends State<_EvaluationModalSheet> {
+  late CandidateEvaluationModel? _evaluation;
+  late String? _error;
+  bool _loading = false;
+
+  @override
+  void initState() {
+    super.initState();
+    _evaluation = widget.initialEvaluation;
+    _error = widget.initialError;
+    if (_evaluation == null && _error == null) {
+      _fetchData();
+    }
+  }
+
+  Future<void> _fetchData() async {
+    setState(() {
+      _loading = true;
+      _error = null;
+    });
+    try {
+      final ev = await getIt<ApplicationRepository>().getApplicationEvaluation(widget.applicationId);
+      if (!mounted) return;
+      setState(() {
+        _evaluation = ev;
+        _loading = false;
+      });
+      widget.onEvaluationLoaded?.call(ev);
+    } catch (e) {
+      if (!mounted) return;
+      setState(() {
+        _error = e.toString().replaceAll('Exception: ', '');
+        _loading = false;
+      });
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final isCv = widget.roundKey == EvaluationRoundKey.cv;
+    final isAssessment = widget.roundKey == EvaluationRoundKey.assessment;
+
+    return SafeArea(
+      child: ConstrainedBox(
+        constraints: BoxConstraints(
+          maxHeight: MediaQuery.of(context).size.height * 0.88,
+        ),
+        child: Padding(
+          padding: const EdgeInsets.fromLTRB(20, 12, 20, 20),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              // Top Drag Handle
+              Center(
+                child: Container(
+                  width: 40,
+                  height: 4,
+                  decoration: BoxDecoration(
+                    color: const Color(0xFFE2E8F0),
+                    borderRadius: BorderRadius.circular(2),
+                  ),
+                ),
+              ),
+              const SizedBox(height: 14),
+
+              // Header: Icon + Title + Job Title + Close Button
+              Row(
+                children: [
+                  Container(
+                    padding: const EdgeInsets.all(9),
+                    decoration: BoxDecoration(
+                      color: isCv
+                          ? const Color(0xFFEFF6FF)
+                          : (isAssessment ? const Color(0xFFFFF7ED) : const Color(0xFFEFF6FF)),
+                      borderRadius: BorderRadius.circular(10),
+                    ),
+                    child: Icon(
+                      isCv
+                          ? Icons.description_outlined
+                          : (isAssessment ? Icons.quiz_outlined : Icons.smart_toy_outlined),
+                      size: 22,
+                      color: isCv
+                          ? const Color(0xFF2563EB)
+                          : (isAssessment ? const Color(0xFFEA580C) : const Color(0xFF2563EB)),
+                    ),
+                  ),
+                  const SizedBox(width: 12),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          'Chi tiết đánh giá · ${widget.roundKey.title}',
+                          style: const TextStyle(
+                            fontSize: 15.5,
+                            fontWeight: FontWeight.w700,
+                            color: Color(0xFF0F172A),
+                          ),
+                        ),
+                        const SizedBox(height: 2),
+                        Text(
+                          widget.jobTitle,
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                          style: const TextStyle(
+                            fontSize: 12,
+                            color: Color(0xFF64748B),
+                            fontWeight: FontWeight.w500,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                  IconButton(
+                    onPressed: () => Navigator.pop(context),
+                    icon: const Icon(Icons.close_rounded),
+                    color: const Color(0xFF94A3B8),
+                  ),
+                ],
+              ),
+
+              const SizedBox(height: 12),
+              const Divider(height: 1, color: Color(0xFFE2E8F0)),
+              const SizedBox(height: 14),
+
+              // Scrollable Evaluation Body
+              Flexible(
+                child: SingleChildScrollView(
+                  child: RoundEvaluationPanel(
+                    roundKey: widget.roundKey,
+                    evaluation: _evaluation,
+                    loading: _loading,
+                    error: _error,
+                    showCard: false,
+                    onRetry: _fetchData,
+                  ),
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
     );
   }
 }

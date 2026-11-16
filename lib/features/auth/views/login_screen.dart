@@ -53,16 +53,6 @@ class _LoginScreenState extends State<LoginScreen> {
             }
           } else if (state is AuthError) {
             setState(() => _authErrorMessage = state.message);
-            ScaffoldMessenger.of(context)
-              ..hideCurrentSnackBar()
-              ..showSnackBar(
-                SnackBar(
-                  content: Text(state.message),
-                  backgroundColor: theme.colorScheme.error,
-                  behavior: SnackBarBehavior.floating,
-                  duration: const Duration(seconds: 6),
-                ),
-              );
           }
         },
         builder: (context, state) {
