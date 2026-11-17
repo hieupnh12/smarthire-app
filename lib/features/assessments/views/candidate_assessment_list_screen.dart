@@ -510,9 +510,8 @@ class _CandidateAssessmentListScreenState extends State<CandidateAssessmentListS
             color: Color(0xFF64748B),
           ),
         ),
-        const Spacer(),
+        const SizedBox(width: 8),
         Expanded(
-          flex: 2,
           child: Text(
             value,
             textAlign: TextAlign.end,
@@ -767,6 +766,7 @@ class _CandidateAssessmentListScreenState extends State<CandidateAssessmentListS
                                                 ),
                                                 const SizedBox(width: 8),
                                                 Container(
+                                                  constraints: const BoxConstraints(maxWidth: 130),
                                                   padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
                                                   decoration: BoxDecoration(
                                                     color: badgeBg,
@@ -820,31 +820,41 @@ class _CandidateAssessmentListScreenState extends State<CandidateAssessmentListS
                                               child: Row(
                                                 mainAxisAlignment: MainAxisAlignment.spaceBetween,
                                                 children: [
-                                                  Row(
-                                                    mainAxisSize: MainAxisSize.min,
-                                                    children: [
-                                                      if (item.completedAt != null) ...[
-                                                        const Icon(
-                                                          Icons.calendar_today_outlined,
-                                                          size: 12,
-                                                          color: Color(0xFF94A3B8),
-                                                        ),
-                                                        const SizedBox(width: 5),
-                                                        Text(
-                                                          DateFormat('dd/MM/yyyy').format(item.completedAt!),
-                                                          style: const TextStyle(
-                                                            fontSize: 11.5,
+                                                  Expanded(
+                                                    child: Row(
+                                                      children: [
+                                                        if (item.completedAt != null) ...[
+                                                          const Icon(
+                                                            Icons.calendar_today_outlined,
+                                                            size: 12,
                                                             color: Color(0xFF94A3B8),
-                                                            fontWeight: FontWeight.w500,
                                                           ),
-                                                        ),
-                                                      ] else
-                                                        const Text(
-                                                          'Đã hoàn thành',
-                                                          style: TextStyle(fontSize: 11.5, color: Color(0xFF94A3B8)),
-                                                        ),
-                                                    ],
+                                                          const SizedBox(width: 5),
+                                                          Expanded(
+                                                            child: Text(
+                                                              DateFormat('dd/MM/yyyy').format(item.completedAt!),
+                                                              maxLines: 1,
+                                                              overflow: TextOverflow.ellipsis,
+                                                              style: const TextStyle(
+                                                                fontSize: 11.5,
+                                                                color: Color(0xFF94A3B8),
+                                                                fontWeight: FontWeight.w500,
+                                                              ),
+                                                            ),
+                                                          ),
+                                                        ] else
+                                                          const Expanded(
+                                                            child: Text(
+                                                              'Đã hoàn thành',
+                                                              maxLines: 1,
+                                                              overflow: TextOverflow.ellipsis,
+                                                              style: TextStyle(fontSize: 11.5, color: Color(0xFF94A3B8)),
+                                                            ),
+                                                          ),
+                                                      ],
+                                                    ),
                                                   ),
+                                                  const SizedBox(width: 8),
                                                   Row(
                                                     mainAxisSize: MainAxisSize.min,
                                                     children: [

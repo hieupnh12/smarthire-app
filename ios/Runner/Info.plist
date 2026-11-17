@@ -66,5 +66,9 @@
 		<string>UIInterfaceOrientationLandscapeLeft</string>
 		<string>UIInterfaceOrientationLandscapeRight</string>
 	</array>
+	<key>NSCameraUsageDescription</key>
+	<string>SmartHire cần quyền truy cập Camera để quét mã QR đăng nhập và mã phòng phỏng vấn.</string>
+	<key>NSPhotoLibraryUsageDescription</key>
+	<string>SmartHire cần quyền truy cập thư viện ảnh để tải lên hồ sơ ứng tuyển và tài liệu liên quan.</string>
 </dict>
 </plist>

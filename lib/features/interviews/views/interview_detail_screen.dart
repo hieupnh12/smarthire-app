@@ -396,9 +396,13 @@ class _InterviewDetailScreenState extends State<InterviewDetailScreen> {
                       children: [
                         Icon(Icons.update_rounded, color: Colors.amber.shade900, size: 18),
                         const SizedBox(width: 8),
-                        Text(
-                          'Đã gửi đề nghị đổi lịch',
-                          style: TextStyle(fontWeight: FontWeight.bold, color: Colors.amber.shade900),
+                        Expanded(
+                          child: Text(
+                            'Đã gửi đề nghị đổi lịch',
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                            style: TextStyle(fontWeight: FontWeight.bold, color: Colors.amber.shade900),
+                          ),
                         ),
                       ],
                     ),
@@ -605,9 +609,13 @@ class _RescheduleBottomSheetState extends State<_RescheduleBottomSheet> {
             Row(
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
-                Text(
-                  'Đề nghị đổi giờ phỏng vấn',
-                  style: theme.textTheme.titleMedium?.copyWith(fontWeight: FontWeight.bold),
+                Expanded(
+                  child: Text(
+                    'Đề nghị đổi giờ phỏng vấn',
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: theme.textTheme.titleMedium?.copyWith(fontWeight: FontWeight.bold),
+                  ),
                 ),
                 IconButton(
                   icon: const Icon(Icons.close_rounded),

@@ -415,27 +415,16 @@ class _ApplicationDetailScreenState extends State<ApplicationDetailScreen> {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Row(
-            children: [
-              const Expanded(
-                child: Text(
-                  'KẾT QUẢ ĐÁNH GIÁ & FEEDBACK',
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                  style: TextStyle(
-                    fontSize: 12,
-                    fontWeight: FontWeight.w700,
-                    letterSpacing: 0.5,
-                    color: Color(0xFF64748B),
-                  ),
-                ),
-              ),
-              const SizedBox(width: 8),
-              Text(
-                'Xem chi tiết',
-                style: TextStyle(fontSize: 11.5, color: theme.colorScheme.primary, fontWeight: FontWeight.w600),
-              ),
-            ],
+          const Text(
+            'KẾT QUẢ ĐÁNH GIÁ & FEEDBACK',
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
+            style: TextStyle(
+              fontSize: 12,
+              fontWeight: FontWeight.w700,
+              letterSpacing: 0.5,
+              color: Color(0xFF64748B),
+            ),
           ),
           const SizedBox(height: 12),
 
@@ -470,7 +459,7 @@ class _ApplicationDetailScreenState extends State<ApplicationDetailScreen> {
                     : (assessments.first.passed == false
                         ? 'CHƯA ĐẠT'
                         : (assessments.first.status == 'SUBMITTED' ? 'ĐÃ NỘP' : 'CHƯA LÀM')))
-                : 'CHƯA CHỈ ĐỊNH',
+                : 'CHƯA MỞ',
             isPassed: assessments.isNotEmpty ? assessments.first.passed : null,
             onTap: () => _openRoundEvaluationSheet(EvaluationRoundKey.assessment),
           ),
@@ -489,8 +478,8 @@ class _ApplicationDetailScreenState extends State<ApplicationDetailScreen> {
                 ? '${aiInterviews.first.score!.toStringAsFixed(1)} / 100'
                 : (aiInterviews.isNotEmpty ? 'Chưa có điểm' : '--'),
             statusTag: aiInterviews.isNotEmpty
-                ? (aiInterviews.first.passed == true ? 'ĐẠT' : (aiInterviews.first.passed == false ? 'CHƯA ĐẠT' : 'CHƯA HOÀN TẤT'))
-                : 'CHƯA CHỈ ĐỊNH',
+                ? (aiInterviews.first.passed == true ? 'ĐẠT' : (aiInterviews.first.passed == false ? 'CHƯA ĐẠT' : 'CHƯA LÀM'))
+                : 'CHƯA MỞ',
             isPassed: aiInterviews.isNotEmpty ? aiInterviews.first.passed : null,
             onTap: () => _openRoundEvaluationSheet(EvaluationRoundKey.aiInterview),
           ),
@@ -585,47 +574,42 @@ class _ApplicationDetailScreenState extends State<ApplicationDetailScreen> {
                     ),
                   ),
                   const SizedBox(height: 3),
-                  Wrap(
-                    spacing: 6,
-                    runSpacing: 4,
-                    crossAxisAlignment: WrapCrossAlignment.center,
-                    children: [
-                      Text(
-                        scoreText.contains('điểm') || scoreText.contains('Đang') || scoreText == '--'
-                            ? scoreText
-                            : 'Điểm: $scoreText',
-                        maxLines: 1,
-                        overflow: TextOverflow.ellipsis,
-                        style: const TextStyle(
-                          fontSize: 12,
-                          fontWeight: FontWeight.w600,
-                          color: Color(0xFF475569),
-                        ),
-                      ),
-                      Container(
-                        padding: const EdgeInsets.symmetric(horizontal: 6.5, vertical: 2),
-                        decoration: BoxDecoration(
-                          color: badgeBg,
-                          borderRadius: BorderRadius.circular(4),
-                          border: Border.all(color: badgeColor.withValues(alpha: 0.2)),
-                        ),
-                        child: Text(
-                          statusTag,
-                          maxLines: 1,
-                          overflow: TextOverflow.ellipsis,
-                          style: TextStyle(
-                            fontSize: 10,
-                            fontWeight: FontWeight.w700,
-                            color: badgeColor,
-                          ),
-                        ),
-                      ),
-                    ],
+                  Text(
+                    scoreText.contains('điểm') || scoreText.contains('Đang') || scoreText == '--'
+                        ? scoreText
+                        : 'Điểm: $scoreText',
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: const TextStyle(
+                      fontSize: 12,
+                      fontWeight: FontWeight.w500,
+                      color: Color(0xFF64748B),
+                    ),
                   ),
                 ],
               ),
             ),
-            const SizedBox(width: 6),
+            const SizedBox(width: 8),
+            Container(
+              constraints: const BoxConstraints(maxWidth: 100),
+              padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 3),
+              decoration: BoxDecoration(
+                color: badgeBg,
+                borderRadius: BorderRadius.circular(6),
+                border: Border.all(color: badgeColor.withValues(alpha: 0.2)),
+              ),
+              child: Text(
+                statusTag,
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+                style: TextStyle(
+                  fontSize: 10.5,
+                  fontWeight: FontWeight.w700,
+                  color: badgeColor,
+                ),
+              ),
+            ),
+            const SizedBox(width: 4),
             const Icon(
               Icons.chevron_right_rounded,
               size: 20,

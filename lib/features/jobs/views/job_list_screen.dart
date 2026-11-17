@@ -308,15 +308,20 @@ class _JobListScreenState extends State<JobListScreen> {
                             child: Row(
                               mainAxisAlignment: MainAxisAlignment.spaceBetween,
                               children: [
-                                Text(
-                                  'Tìm thấy ${jobs.length} cơ hội việc làm',
-                                  style: const TextStyle(
-                                    fontSize: 13,
-                                    fontWeight: FontWeight.w600,
-                                    color: Color(0xFF475569),
+                                Expanded(
+                                  child: Text(
+                                    'Tìm thấy ${jobs.length} cơ hội việc làm',
+                                    maxLines: 1,
+                                    overflow: TextOverflow.ellipsis,
+                                    style: const TextStyle(
+                                      fontSize: 13,
+                                      fontWeight: FontWeight.w600,
+                                      color: Color(0xFF475569),
+                                    ),
                                   ),
                                 ),
-                                if (_selectedFilter != 'ALL')
+                                if (_selectedFilter != 'ALL') ...[
+                                  const SizedBox(width: 8),
                                   GestureDetector(
                                     onTap: () => setState(() => _selectedFilter = 'ALL'),
                                     child: const Text(
@@ -328,6 +333,7 @@ class _JobListScreenState extends State<JobListScreen> {
                                       ),
                                     ),
                                   ),
+                                ],
                               ],
                             ),
                           );
