@@ -100,48 +100,43 @@ class RoundSummaryCard extends StatelessWidget {
                     overflow: TextOverflow.ellipsis,
                     style: theme.textTheme.titleSmall?.copyWith(fontWeight: FontWeight.bold),
                   ),
-                  const SizedBox(height: 5),
-                  Row(
-                    children: [
-                      if (round?.score != null) ...[
-                        Text(
-                          'Điểm: ${ApplicationLabels.formatScore(round!.score!)}${round?.threshold != null ? ' / ${ApplicationLabels.formatScore(round!.threshold!)}' : ''}',
-                          style: TextStyle(
-                            fontSize: 12.5,
-                            fontWeight: FontWeight.w600,
-                            color: theme.colorScheme.onSurface,
-                          ),
-                        ),
-                        const SizedBox(width: 8),
-                      ] else ...[
-                        Text(
-                          'Chưa có điểm',
-                          style: TextStyle(fontSize: 12, color: theme.colorScheme.outline),
-                        ),
-                        const SizedBox(width: 8),
-                      ],
-                      Container(
-                        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2.5),
-                        decoration: BoxDecoration(
-                          color: badgeColor.withValues(alpha: 0.12),
-                          borderRadius: BorderRadius.circular(12),
-                          border: Border.all(color: badgeColor.withValues(alpha: 0.3)),
-                        ),
-                        child: Text(
-                          statusLabel,
-                          style: TextStyle(
-                            fontSize: 11,
-                            fontWeight: FontWeight.w700,
-                            color: badgeColor,
-                          ),
-                        ),
-                      ),
-                    ],
+                  const SizedBox(height: 3),
+                  Text(
+                    round?.score != null
+                        ? 'Điểm: ${ApplicationLabels.formatScore(round!.score!)}${round?.threshold != null ? ' / ${ApplicationLabels.formatScore(round!.threshold!)}' : ''}'
+                        : 'Chưa có điểm',
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: TextStyle(
+                      fontSize: 12,
+                      fontWeight: FontWeight.w500,
+                      color: round?.score != null ? theme.colorScheme.onSurface : theme.colorScheme.outline,
+                    ),
                   ),
                 ],
               ),
             ),
             const SizedBox(width: 8),
+            Container(
+              constraints: const BoxConstraints(maxWidth: 100),
+              padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 3),
+              decoration: BoxDecoration(
+                color: badgeColor.withValues(alpha: 0.12),
+                borderRadius: BorderRadius.circular(6),
+                border: Border.all(color: badgeColor.withValues(alpha: 0.3)),
+              ),
+              child: Text(
+                statusLabel,
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+                style: TextStyle(
+                  fontSize: 10.5,
+                  fontWeight: FontWeight.w700,
+                  color: badgeColor,
+                ),
+              ),
+            ),
+            const SizedBox(width: 4),
             Icon(
               selected ? Icons.keyboard_arrow_up_rounded : Icons.keyboard_arrow_down_rounded,
               color: selected ? theme.colorScheme.primary : theme.colorScheme.outline,
@@ -430,11 +425,15 @@ class _CvEvaluationContent extends StatelessWidget {
                   children: [
                     Icon(Icons.lightbulb_outline_rounded, size: 18, color: theme.colorScheme.primary),
                     const SizedBox(width: 6),
-                    Text(
-                      cv.candidateAdvice?.trim().isNotEmpty == true
-                          ? 'Lời khuyên của AI'
-                          : 'Gợi ý rút kinh nghiệm',
-                      style: const TextStyle(fontSize: 13, fontWeight: FontWeight.bold),
+                    Expanded(
+                      child: Text(
+                        cv.candidateAdvice?.trim().isNotEmpty == true
+                            ? 'Lời khuyên của AI'
+                            : 'Gợi ý rút kinh nghiệm',
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: const TextStyle(fontSize: 13, fontWeight: FontWeight.bold),
+                      ),
                     ),
                   ],
                 ),
@@ -554,7 +553,9 @@ class _AiInterviewAttemptCard extends StatelessWidget {
                   ],
                 ),
               ),
+              const SizedBox(width: 8),
               Container(
+                constraints: const BoxConstraints(maxWidth: 100),
                 padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
                 decoration: BoxDecoration(
                   color: outcomeColor.withValues(alpha: 0.12),
@@ -562,6 +563,8 @@ class _AiInterviewAttemptCard extends StatelessWidget {
                 ),
                 child: Text(
                   outcomeText,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
                   style: TextStyle(fontSize: 11, fontWeight: FontWeight.w600, color: outcomeColor),
                 ),
               ),
@@ -744,7 +747,9 @@ class _AssessmentAttemptCardState extends State<_AssessmentAttemptCard> {
                   ],
                 ),
               ),
+              const SizedBox(width: 8),
               Container(
+                constraints: const BoxConstraints(maxWidth: 100),
                 padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
                 decoration: BoxDecoration(
                   color: outcomeColor.withValues(alpha: 0.12),
@@ -752,6 +757,8 @@ class _AssessmentAttemptCardState extends State<_AssessmentAttemptCard> {
                 ),
                 child: Text(
                   outcomeText,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
                   style: TextStyle(fontSize: 11, fontWeight: FontWeight.w600, color: outcomeColor),
                 ),
               ),

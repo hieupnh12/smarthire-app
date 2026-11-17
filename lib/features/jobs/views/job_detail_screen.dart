@@ -374,12 +374,16 @@ class _JobDetailScreenState extends State<JobDetailScreen> {
                           child: const Icon(Icons.psychology_outlined, size: 18, color: Color(0xFF2563EB)),
                         ),
                         const SizedBox(width: 10),
-                        const Text(
-                          'Kỹ năng yêu cầu',
-                          style: TextStyle(
-                            fontSize: 16,
-                            fontWeight: FontWeight.w700,
-                            color: Color(0xFF0F172A),
+                        const Expanded(
+                          child: Text(
+                            'Kỹ năng yêu cầu',
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                            style: TextStyle(
+                              fontSize: 16,
+                              fontWeight: FontWeight.w700,
+                              color: Color(0xFF0F172A),
+                            ),
                           ),
                         ),
                       ],
@@ -543,13 +547,17 @@ class _JobDetailScreenState extends State<JobDetailScreen> {
                 child: Icon(icon, size: 18, color: iconColor),
               ),
               const SizedBox(width: 10),
-              Text(
-                title,
-                style: const TextStyle(
-                  fontSize: 16,
-                  fontWeight: FontWeight.w700,
-                  color: Color(0xFF0F172A),
-                  letterSpacing: -0.2,
+              Expanded(
+                child: Text(
+                  title,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: const TextStyle(
+                    fontSize: 16,
+                    fontWeight: FontWeight.w700,
+                    color: Color(0xFF0F172A),
+                    letterSpacing: -0.2,
+                  ),
                 ),
               ),
             ],
